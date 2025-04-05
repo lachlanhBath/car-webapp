@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
 import { colors, spacing, typography, mixins, shadows } from '../styles/styleGuide';
+import Input from '../components/UI/Input';
 
 // Types
 interface Vehicle {
@@ -50,6 +51,24 @@ interface ListingDetail {
   source_url?: string;
   image_urls: string[];
   vehicle: Vehicle;
+}
+
+// Add interface for the cost estimate response
+interface CostEstimateResponse {
+  vehicle_id: number;
+  make: string;
+  model: string;
+  estimated_monthly_cost: {
+    total: number;
+    fuel: number;
+    maintenance: number;
+    tax: number;
+    insurance: number;
+  };
+  parameters: {
+    weekly_miles: number;
+    driving_style: string;
+  };
 }
 
 // Styled components
@@ -810,6 +829,7 @@ const MOTAdvisoryItem = styled.li`
   }
 `;
 
+
 // Update the SmallAITag to remove the border effect
 const SmallAITag = styled.span`
   display: inline-flex;
@@ -889,6 +909,146 @@ const RepairEstimateTitle = styled.div`
 const RepairEstimateContent = styled.div`
   white-space: pre-line;
   line-height: 1.6;
+
+// Add styled components for the cost calculator
+const CostCalculatorSection = styled.div`
+  grid-column: 1 / -1;
+  margin-top: ${spacing[8]};
+`;
+
+const CostCalculator = styled.div`
+  background-color: ${colors.light.surface};
+  border-radius: 12px;
+  padding: ${spacing[6]};
+  box-shadow: ${shadows.md};
+`;
+
+const CostForm = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${spacing[4]};
+  margin-bottom: ${spacing[6]};
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+interface CostResultsProps {
+  visible: boolean;
+}
+
+const CostResults = styled.div<CostResultsProps>`
+  background-color: ${colors.primary.main}10;
+  padding: ${spacing[6]};
+  border-radius: 8px;
+  margin-top: ${spacing[4]};
+  display: ${props => props.visible ? 'block' : 'none'};
+`;
+
+const CostBreakdown = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: ${spacing[4]};
+  margin-top: ${spacing[4]};
+`;
+
+const CostItem = styled.div`
+  text-align: center;
+  padding: ${spacing[4]};
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: ${shadows.sm};
+`;
+
+const CostValue = styled.div`
+  font-size: ${typography.fontSize['2xl']};
+  font-weight: ${typography.fontWeight.bold};
+  color: ${colors.primary.main};
+  margin-bottom: ${spacing[2]};
+`;
+
+const CostLabel = styled.div`
+  font-size: ${typography.fontSize.sm};
+  color: ${colors.text.secondary};
+`;
+
+const TotalCost = styled.div`
+  font-size: ${typography.fontSize['3xl']};
+  font-weight: ${typography.fontWeight.bold};
+  text-align: center;
+  margin-bottom: ${spacing[4]};
+`;
+
+const RadioGroup = styled.div`
+  display: flex;
+  gap: ${spacing[4]};
+  margin-top: ${spacing[2]};
+`;
+
+const RadioLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: ${spacing[2]};
+  cursor: pointer;
+  padding: ${spacing[2]} ${spacing[3]};
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: ${colors.light.border}50;
+  }
+`;
+
+const RadioInput = styled.input`
+  cursor: pointer;
+`;
+
+// Add this new styled component for the bar chart
+const CostBarChart = styled.div`
+  padding: ${spacing[6]};
+  margin: ${spacing[4]} 0;
+  background-color: ${colors.light.surface};
+  border-radius: 10px;
+  box-shadow: ${shadows.md};
+  border: 1px solid ${colors.light.border};
+`;
+
+const CostBar = styled.div`
+  height: 30px;
+  margin: ${spacing[2]} 0;
+  background-color: ${colors.light.border};
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+`;
+
+const CostBarFill = styled.div<{ width: string; color: string }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: ${props => props.width};
+  background-color: ${props => props.color};
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+`;
+
+const CostBarLabel = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: ${typography.fontSize.sm};
+  margin-bottom: ${spacing[1]};
+`;
+
+const ResultsLayout = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: ${spacing[6]};
+  
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
 `;
 
 // Component
@@ -903,6 +1063,11 @@ const ListingDetailPage = () => {
   const [motError, setMotError] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
+  const [weeklyMiles, setWeeklyMiles] = useState('');
+  const [drivingStyle, setDrivingStyle] = useState('normal');
+  const [costEstimate, setCostEstimate] = useState<CostEstimateResponse | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -992,6 +1157,129 @@ const ListingDetailPage = () => {
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const calculateMonthlyCosts = () => {
+    console.log('Calculate button clicked with input values:', { weeklyMiles, drivingStyle });
+    
+    if (!weeklyMiles) {
+      console.log('Weekly miles missing, not calculating');
+      setCalculationError('Please enter your weekly mileage');
+      return;
+    }
+    
+    // For testing, uncomment this to use mock data directly
+    // useMockDataDirectly(weeklyMiles, drivingStyle);
+    // return;
+    
+    console.log('Starting API calculation');
+    setIsCalculating(true);
+    setCalculationError(null);
+    
+    if (!listing?.vehicle?.id) {
+      console.error('No vehicle ID available');
+      setCalculationError('Vehicle data not available');
+      setIsCalculating(false);
+      // Fallback to mock data for development/testing
+      console.log('Falling back to mock data due to missing vehicle ID');
+      useMockDataDirectly(weeklyMiles, drivingStyle);
+      return;
+    }
+    
+    const url = `/api/v1/vehicles/${listing.vehicle.id}/operating_cost_estimate`;
+    console.log('Fetching from URL:', url);
+    
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        weekly_miles: parseFloat(weeklyMiles),
+        driving_style: drivingStyle
+      })
+    })
+    .then(response => {
+      console.log('Got API response, status:', response.status);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Successfully parsed API response:', data);
+      setCostEstimate(data);
+    })
+    .catch(error => {
+      console.error('Error fetching cost estimate:', error);
+      setCalculationError(`Error: ${error.message}`);
+      
+      // Fallback to mock data for development/testing if API fails
+      console.log('Falling back to mock data due to API error');
+      useMockDataDirectly(weeklyMiles, drivingStyle);
+    })
+    .finally(() => {
+      console.log('Calculation complete');
+      setIsCalculating(false);
+    });
+  };
+
+  // Change useMockDataDirectly function to correctly match the CostEstimateResponse type
+  const useMockDataDirectly = (weekly: string, style: string) => {
+    console.log('Using mock data directly for demonstration', { weekly, style });
+    
+    // Get vehicle ID safely
+    let vehicleId = 123;
+    if (listing?.vehicle?.id) {
+      try {
+        vehicleId = typeof listing.vehicle.id === 'string' 
+          ? parseInt(listing.vehicle.id, 10) 
+          : listing.vehicle.id;
+      } catch (e) {
+        console.error('Error parsing vehicle ID:', e);
+      }
+    }
+    
+    // Create mock data based on the inputs
+    const weeklyMilesNum = parseFloat(weekly) || 200;
+    const mockData: CostEstimateResponse = {
+      vehicle_id: vehicleId,
+      make: listing?.vehicle?.make || 'Example',
+      model: listing?.vehicle?.model || 'Car',
+      estimated_monthly_cost: {
+        total: 325.75,
+        fuel: 165.50,
+        maintenance: 45.25,
+        tax: 15.00,
+        insurance: 100.00
+      },
+      parameters: {
+        weekly_miles: weeklyMilesNum,
+        driving_style: style
+      }
+    };
+    
+    console.log('Created mock data:', mockData);
+    
+    // Adjust values based on driving style
+    const styleMultiplier = style === 'eco' ? 0.85 : (style === 'aggressive' ? 1.2 : 1.0);
+    
+    // Adjust values based on weekly miles (scale linearly)
+    const mileageMultiplier = weeklyMilesNum / 200;
+    
+    // Apply adjustments to mock data
+    mockData.estimated_monthly_cost.fuel = Math.round(mockData.estimated_monthly_cost.fuel * styleMultiplier * mileageMultiplier * 100) / 100;
+    mockData.estimated_monthly_cost.maintenance = Math.round(mockData.estimated_monthly_cost.maintenance * mileageMultiplier * 100) / 100;
+    mockData.estimated_monthly_cost.total = Math.round((
+      mockData.estimated_monthly_cost.fuel + 
+      mockData.estimated_monthly_cost.maintenance + 
+      mockData.estimated_monthly_cost.tax + 
+      mockData.estimated_monthly_cost.insurance
+    ) * 100) / 100;
+    
+    console.log('Setting cost estimate state with mock data');
+    setCostEstimate(mockData);
+    setIsCalculating(false);
   };
 
   if (loading) {
@@ -1232,26 +1520,215 @@ const ListingDetailPage = () => {
       {/* Add AI Purchase Summary Section - After Expected Lifetime */}
       {listing.vehicle.purchase_summary ? (
         <AIPurchaseSummarySection>
+      {!loading && !error && listing && (
+        <CostCalculatorSection>
           <DetailSection>
-            <SectionTitle>Purchase Analysis</SectionTitle>
-            <AIPoweredContainer>
-              <AIBadge>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
-                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
-                </svg>
-                AI-Generated Analysis
-              </AIBadge>
-              <PurchaseSummary>
-                {listing.vehicle.purchase_summary}
-              </PurchaseSummary>
-            </AIPoweredContainer>
+            <SectionTitle>Monthly Cost Estimator</SectionTitle>
+            <CostCalculator>
+              <p>Estimate your monthly operating costs based on your driving habits.</p>
+              <CostForm>
+                <div>
+                  <Input
+                    label="Weekly miles driven"
+                    type="number"
+                    value={weeklyMiles}
+                    onChange={(e) => setWeeklyMiles(e.target.value)}
+                    placeholder="e.g. 200"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: spacing[2] }}>
+                    Driving style
+                  </label>
+                  <RadioGroup>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="eco"
+                        checked={drivingStyle === 'eco'}
+                        onChange={() => setDrivingStyle('eco')}
+                      />
+                      Eco
+                    </RadioLabel>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="normal"
+                        checked={drivingStyle === 'normal'}
+                        onChange={() => setDrivingStyle('normal')}
+                      />
+                      Normal
+                    </RadioLabel>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="aggressive"
+                        checked={drivingStyle === 'aggressive'}
+                        onChange={() => setDrivingStyle('aggressive')}
+                      />
+                      Aggressive
+                    </RadioLabel>
+                  </RadioGroup>
+                </div>
+              </CostForm>
+              
+              <button
+                onClick={() => useMockDataDirectly(weeklyMiles, drivingStyle)}
+                style={{
+                  backgroundColor: '#666',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: `${spacing[2]} ${spacing[4]}`,
+                  margin: `${spacing[4]} 0`,
+                  cursor: 'pointer',
+                  fontSize: typography.fontSize.sm,
+                  width: '100%'
+                }}
+              >
+                DEMO: Show Example Data
+              </button>
+              
+              <button 
+                onClick={() => {
+                  console.log('Calculate button clicked');
+                  calculateMonthlyCosts();
+                }} 
+                disabled={!weeklyMiles || isCalculating}
+                style={{
+                  backgroundColor: colors.primary.main,
+                  color: colors.primary.contrast,
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: `${spacing[3]} ${spacing[6]}`,
+                  fontWeight: typography.fontWeight.medium,
+                  cursor: !weeklyMiles || isCalculating ? 'not-allowed' : 'pointer',
+                  opacity: !weeklyMiles || isCalculating ? 0.7 : 1,
+                  width: '100%',
+                  fontSize: typography.fontSize.base,
+                  transition: 'background-color 0.2s ease'
+                }}
+              >
+                {isCalculating ? 'Calculating...' : 'Calculate Monthly Costs'}
+              </button>
+              
+              {calculationError && (
+                <div style={{ color: colors.state.error, marginTop: spacing[4] }}>
+                  {calculationError}
+                </div>
+              )}
+              
+              <CostResults 
+                visible={!!costEstimate}
+                style={{ 
+                  border: '2px solid #4a90e2', 
+                  borderRadius: '12px', 
+                  padding: spacing[6], 
+                  boxShadow: shadows.lg
+                }}
+              >
+                {costEstimate && (
+                  <>
+                    <TotalCost>
+                      £{costEstimate.estimated_monthly_cost.total} per month
+                    </TotalCost>
+                    
+                    <ResultsLayout>
+                      <CostBreakdown>
+                        <CostItem>
+                          <CostValue>£{costEstimate.estimated_monthly_cost.fuel}</CostValue>
+                          <CostLabel>Fuel</CostLabel>
+                        </CostItem>
+                        <CostItem>
+                          <CostValue>£{costEstimate.estimated_monthly_cost.maintenance}</CostValue>
+                          <CostLabel>Maintenance</CostLabel>
+                        </CostItem>
+                        <CostItem>
+                          <CostValue>£{costEstimate.estimated_monthly_cost.tax}</CostValue>
+                          <CostLabel>Road Tax</CostLabel>
+                        </CostItem>
+                        <CostItem>
+                          <CostValue>£{costEstimate.estimated_monthly_cost.insurance}</CostValue>
+                          <CostLabel>Insurance</CostLabel>
+                        </CostItem>
+                      </CostBreakdown>
+                      
+                      <CostBarChart style={{ 
+                        padding: spacing[6],
+                        margin: `${spacing[4]} 0`,
+                        backgroundColor: '#f8f9fa', 
+                        borderRadius: '10px',
+                        boxShadow: shadows.md, 
+                        border: '1px solid #dee2e6'
+                      }}>
+                        <h4 style={{ marginBottom: spacing[3], textAlign: 'center' }}>Cost Breakdown</h4>
+                        
+                        {/* Fuel Bar */}
+                        <CostBarLabel>
+                          <span>Fuel</span>
+                          <span>£{costEstimate.estimated_monthly_cost.fuel}</span>
+                        </CostBarLabel>
+                        <CostBar>
+                          <CostBarFill 
+                            width={`${(costEstimate.estimated_monthly_cost.fuel / costEstimate.estimated_monthly_cost.total) * 100}%`} 
+                            color={colors.primary.light}
+                          />
+                        </CostBar>
+                        
+                        {/* Maintenance Bar */}
+                        <CostBarLabel>
+                          <span>Maintenance</span>
+                          <span>£{costEstimate.estimated_monthly_cost.maintenance}</span>
+                        </CostBarLabel>
+                        <CostBar>
+                          <CostBarFill 
+                            width={`${(costEstimate.estimated_monthly_cost.maintenance / costEstimate.estimated_monthly_cost.total) * 100}%`} 
+                            color={colors.secondary.main}
+                          />
+                        </CostBar>
+                        
+                        {/* Tax Bar */}
+                        <CostBarLabel>
+                          <span>Road Tax</span>
+                          <span>£{costEstimate.estimated_monthly_cost.tax}</span>
+                        </CostBarLabel>
+                        <CostBar>
+                          <CostBarFill 
+                            width={`${(costEstimate.estimated_monthly_cost.tax / costEstimate.estimated_monthly_cost.total) * 100}%`} 
+                            color="#6CB2EB"
+                          />
+                        </CostBar>
+                        
+                        {/* Insurance Bar */}
+                        <CostBarLabel>
+                          <span>Insurance</span>
+                          <span>£{costEstimate.estimated_monthly_cost.insurance}</span>
+                        </CostBarLabel>
+                        <CostBar>
+                          <CostBarFill 
+                            width={`${(costEstimate.estimated_monthly_cost.insurance / costEstimate.estimated_monthly_cost.total) * 100}%`} 
+                            color="#B6A4FE"
+                          />
+                        </CostBar>
+                      </CostBarChart>
+                    </ResultsLayout>
+                    
+                    <div style={{ textAlign: 'center', marginTop: spacing[6], fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                      Based on {costEstimate.parameters.weekly_miles} miles per week with {costEstimate.parameters.driving_style} driving style.
+                    </div>
+                  </>
+                )}
+              </CostResults>
+            </CostCalculator>
           </DetailSection>
-        </AIPurchaseSummarySection>
-      ) : null}
+        </CostCalculatorSection>
+      )}
       
-      {/* Add Mileage Graph Section - After AI summary but before MOT History */}
+      {/* Add Mileage Graph Section - Before MOT History */}
       {!motLoading && !motError && motHistory.length > 0 && (
         <MileageGraphSection>
           <DetailSection>
