@@ -909,6 +909,7 @@ const RepairEstimateTitle = styled.div`
 const RepairEstimateContent = styled.div`
   white-space: pre-line;
   line-height: 1.6;
+`;
 
 // Add styled components for the cost calculator
 const CostCalculatorSection = styled.div`
@@ -1520,6 +1521,25 @@ const ListingDetailPage = () => {
       {/* Add AI Purchase Summary Section - After Expected Lifetime */}
       {listing.vehicle.purchase_summary ? (
         <AIPurchaseSummarySection>
+          <DetailSection>
+            <SectionTitle>Purchase Analysis</SectionTitle>
+            <AIPoweredContainer>
+              <AIBadge>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                </svg>
+                AI-Generated Analysis
+              </AIBadge>
+              <PurchaseSummary>
+                {listing.vehicle.purchase_summary}
+              </PurchaseSummary>
+            </AIPoweredContainer>
+          </DetailSection>
+        </AIPurchaseSummarySection>
+      ) : null}
+      
       {!loading && !error && listing && (
         <CostCalculatorSection>
           <DetailSection>
