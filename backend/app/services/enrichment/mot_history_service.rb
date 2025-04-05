@@ -1,175 +1,117 @@
-require 'httparty'
+require "net/http"
+require "json"
 
 module Enrichment
   class MotHistoryService
-    include HTTParty
-    
-    API_ENDPOINT = 'https://beta.check-mot.service.gov.uk/trade/vehicles/mot-tests'
-    
+    TOKEN_URL = "https://login.microsoftonline.com/a455b827-244f-4c97-b5b4-ce5d13b4d00c/oauth2/v2.0/token"
+    BASE_URL = "https://history.mot.api.gov.uk"
+    SCOPE_URL = "https://tapi.dvsa.gov.uk/.default"
+
     def initialize(api_key = nil)
-      @api_key = api_key || ENV['MOT_API_KEY']
+      @api_key = api_key || ENV["MOT_HISTORY_API_KEY"]
     end
-    
+
     def fetch_history(registration)
-      return sample_data(registration) if Rails.env.development? || Rails.env.test? || @api_key.blank?
-      
-      clean_reg = sanitize_registration(registration)
-      Rails.logger.info "Fetching MOT history for registration: #{clean_reg}"
-      
-      begin
-        response = HTTParty.get(
-          "#{API_ENDPOINT}?registration=#{clean_reg}",
-          headers: {
-            'Accept' => 'application/json+v6',
-            'x-api-key' => @api_key
-          },
-          timeout: 10
-        )
-        
-        if response.code == 200
-          data = JSON.parse(response.body, symbolize_names: true)
-          Rails.logger.info "MOT history retrieved successfully for #{clean_reg}"
-          
-          return format_mot_data(data)
-        else
-          error_message = response.body.present? ? JSON.parse(response.body)['message'] : "HTTP Error: #{response.code}"
-          Rails.logger.error "MOT API error for #{clean_reg}: #{error_message}"
-          []
-        end
-      rescue => e
-        Rails.logger.error "Error fetching MOT history: #{e.message}"
-        []
-      end
+      # Simply return the raw API response
+      fetch_mot_history(registration)
     end
-    
+
     private
-    
-    def sanitize_registration(registration)
-      registration.gsub(/[^A-Z0-9]/i, '').upcase
-    end
-    
-    def format_mot_data(data)
-      return [] unless data.is_a?(Array) && data.any?
-      
-      vehicle_data = data.first
-      mot_tests = vehicle_data[:motTests] || []
-      
-      mot_tests.map do |test|
-        {
-          test_date: parse_date(test[:completedDate]),
-          expiry_date: parse_date(test[:expiryDate]),
-          odometer: extract_odometer(test),
-          result: test[:testResult],
-          advisory_notes: extract_advisory_notes(test),
-          failure_reasons: extract_failure_reasons(test)
-        }
+
+    def fetch_mot_history(registration_number)
+      clean_reg = sanitize_registration(registration_number)
+      Rails.logger.info("Fetching MOT history for: #{clean_reg}")
+
+      if ENV["MOT_HISTORY_CLIENT_ID"].blank? || ENV["MOT_HISTORY_CLIENT_SECRET"].blank? || @api_key.blank?
+        Rails.logger.error("Missing MOT History API credentials")
+        return {"error" => "Missing MOT History API credentials"}
       end
-    end
-    
-    def parse_date(date_string)
-      return nil unless date_string
-      Date.parse(date_string) rescue nil
-    end
-    
-    def extract_odometer(test)
-      return nil unless test[:odometerValue].present?
-      test[:odometerValue].to_i
-    end
-    
-    def extract_advisory_notes(test)
-      rfrs = test[:rfrAndComments] || []
-      advisories = rfrs.select { |rfr| rfr[:type] == 'ADVISORY' }
-      advisories.map { |adv| adv[:text] }.join("\n")
-    end
-    
-    def extract_failure_reasons(test)
-      rfrs = test[:rfrAndComments] || []
-      failures = rfrs.select { |rfr| rfr[:type] == 'FAIL' }
-      failures.map { |fail| fail[:text] }.join("\n")
-    end
-    
-    # Generate sample data for development/testing
-    def sample_data(registration)
-      # Seed the random generator with the registration to get consistent results
-      seeded_rand = Random.new(registration.sum(&:ord))
-      
-      # Determine how many MOT tests to generate
-      test_count = seeded_rand.rand(0..5)
-      
-      # Generate a consistent start date and base mileage
-      base_year = seeded_rand.rand(2018..2023)
-      base_date = Date.new(base_year, seeded_rand.rand(1..12), seeded_rand.rand(1..28))
-      base_mileage = seeded_rand.rand(10000..80000)
-      
-      # Generate the test history from newest to oldest
-      tests = []
-      test_count.times do |i|
-        test_date = base_date - (i * 365)
-        expiry_date = test_date + 365
-        
-        # Each older test has lower mileage
-        mileage = base_mileage - (i * seeded_rand.rand(5000..10000))
-        
-        # Randomize pass/fail and advisories based on registration
-        result = (seeded_rand.rand(1..10) > 2) ? 'PASS' : 'FAIL'
-        
-        tests << {
-          test_date: test_date,
-          expiry_date: expiry_date,
-          odometer: mileage,
-          result: result,
-          advisory_notes: generate_sample_advisories(seeded_rand, i),
-          failure_reasons: result == 'FAIL' ? generate_sample_failures(seeded_rand, i) : nil
-        }
+
+      access_token = get_access_token
+      if access_token.blank?
+        Rails.logger.error("Failed to obtain access token")
+        return {"error" => "Failed to authenticate with MOT History API"}
       end
-      
-      tests
-    end
-    
-    def generate_sample_advisories(seeded_rand, age_factor)
-      advisory_options = [
-        "Tyre worn close to legal limit",
-        "Brake pad wearing thin",
-        "Minor oil leak",
-        "Suspension component has slight play",
-        "Wiper blades showing signs of wear",
-        "Light lens slightly damaged but functional",
-        "Exhaust showing signs of corrosion",
-        "Engine mounting has minor deterioration",
-        "Front brake disc lightly scored",
-        "Headlamp aim at limit of compliance"
-      ]
-      
-      # Older tests are more likely to have more advisories
-      advisory_count = [0, 0, 1, 1, 2, 3].sample(random: seeded_rand) + (age_factor / 2)
-      advisory_count = [advisory_count, advisory_options.size].min
-      
-      if advisory_count > 0
-        advisory_options.sample(advisory_count, random: seeded_rand).join("\n")
+
+      uri = URI.parse("#{BASE_URL}/v1/trade/vehicles/registration/#{clean_reg}")
+      Rails.logger.info("Making request to: #{uri}")
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{access_token}"
+      request["x-api-key"] = @api_key
+
+      Rails.logger.info("Sending request with headers: Authorization=Bearer TOKEN, x-api-key=#{@api_key}")
+
+      response = http.request(request)
+
+      Rails.logger.info("Response status: #{response.code}")
+
+      case response
+      when Net::HTTPSuccess
+        Rails.logger.info("Successful response received.")
+        begin
+          parsed_data = JSON.parse(response.body)
+          Rails.logger.info("Response body: #{safe_truncate(parsed_data.inspect)}")
+          # Return raw parsed data without processing
+          parsed_data
+        rescue JSON::ParserError => e
+          Rails.logger.error("JSON parsing error: #{e.message}")
+          Rails.logger.error("Response body: #{safe_truncate(response.body)}")
+          {"error" => "Failed to parse API response: #{e.message}"}
+        end
+      when Net::HTTPNotFound
+        Rails.logger.info("Vehicle not found")
+        {"error" => "Vehicle MOT history not found"}
       else
+        Rails.logger.error("API error: #{response.code} - #{response.message}")
+        Rails.logger.error("Response body: #{safe_truncate(response.body)}")
+        {"error" => "API error: #{response.code} - #{response.message}"}
+      end
+    rescue => e
+      Rails.logger.error("MOT history request failed: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      {"error" => "Request failed: #{e.message}"}
+    end
+
+    def sanitize_registration(registration)
+      registration.gsub(/[^A-Z0-9]/i, "").upcase
+    end
+
+    def safe_truncate(str, length = 500)
+      return "" if str.nil?
+      (str.length > length) ? str[0...length] + "..." : str
+    end
+
+    def get_access_token
+      uri = URI(TOKEN_URL)
+      request = Net::HTTP::Post.new(uri)
+      request.set_form_data(
+        "grant_type" => "client_credentials",
+        "client_id" => ENV["MOT_HISTORY_CLIENT_ID"],
+        "client_secret" => ENV["MOT_HISTORY_CLIENT_SECRET"],
+        "scope" => SCOPE_URL
+      )
+
+      http = Net::HTTP.new(uri.hostname, uri.port)
+      http.use_ssl = true
+
+      response = http.request(request)
+
+      if response.code == "200"
+        token_data = JSON.parse(response.body)
+        token_data["access_token"]
+      else
+        Rails.logger.error("Failed to get access token: #{response.body}")
         nil
       end
-    end
-    
-    def generate_sample_failures(seeded_rand, age_factor)
-      failure_options = [
-        "Tyre tread depth below legal limit",
-        "Brake efficiency below minimum requirement",
-        "Headlamp aim out of alignment",
-        "Excessive exhaust emissions",
-        "Excessive play in steering",
-        "Significant structural corrosion",
-        "Brake pipe corroded to the extent that failure is imminent",
-        "Windscreen damage impairing driver's view",
-        "Suspension component with excessive play",
-        "Seat belt mounting insecure"
-      ]
-      
-      # Older tests are more likely to have failures
-      failure_count = 1 + (age_factor / 2)
-      failure_count = [failure_count, failure_options.size].min
-      
-      failure_options.sample(failure_count, random: seeded_rand).join("\n")
+    rescue => e
+      Rails.logger.error("Error getting access token: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      nil
     end
   end
-end 
+end

@@ -29,14 +29,17 @@ module Enrichment
         end
       end
 
-      # Price from listing
-      data[:price] = listing.price if listing.price.present?
-
       # Fallbacks and defaults
       data[:year] ||= extract_year_from_date(listing.post_date)
-      data[:status] = 'active'
       
-      data
+      # Filter to only include valid Vehicle attributes
+      valid_attributes = %w[
+        make model year fuel_type transmission engine_size 
+        color body_type doors vin
+      ]
+
+      # Return only valid attributes
+      data.slice(*valid_attributes.map(&:to_sym))
     end
 
     private
