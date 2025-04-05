@@ -58,7 +58,13 @@ module Api
             fuel_type: listing.vehicle.fuel_type,
             transmission: listing.vehicle.transmission,
             mileage: listing.vehicle.mileage,
-            purchase_summary: listing.vehicle.purchase_summary
+            purchase_summary: listing.vehicle.purchase_summary,
+            registration: listing.vehicle.registration,
+            registration_source: listing.vehicle.registration_source,
+            mot_status: listing.vehicle.mot_status,
+            mot_expiry_date: listing.vehicle.mot_expiry_date,
+            mot_repair_estimate: listing.vehicle.mot_repair_estimate,
+            expected_lifetime: listing.vehicle.expected_lifetime
           }
         end
         
@@ -72,7 +78,6 @@ module Api
               color: listing.vehicle.color,
               body_type: listing.vehicle.body_type,
               doors: listing.vehicle.doors,
-              registration: listing.vehicle.registration,
               vin: listing.vehicle.vin
             })
           end

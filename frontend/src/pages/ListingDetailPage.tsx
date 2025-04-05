@@ -19,12 +19,15 @@ interface Vehicle {
   color?: string;
   mileage?: number;
   registration?: string;
+  registration_source?: string;
   vin?: string | null;
   tax_status?: string;
   tax_due_date?: string;
   mot_status?: string;
   mot_expiry_date?: string;
   purchase_summary?: string;
+  mot_repair_estimate?: string;
+  expected_lifetime?: string;
 }
 
 interface MOTHistoryEntry {
@@ -179,6 +182,9 @@ const SpecLabel = styled.span`
   color: ${colors.text.secondary};
   font-size: ${typography.fontSize.sm};
   margin-bottom: ${spacing[1]};
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const SpecValue = styled.span`
@@ -654,18 +660,21 @@ const AIPoweredContainer = styled.div`
     border-radius: 8px;
     padding: 2px;
     background: linear-gradient(
-      45deg,
+      135deg,
       ${colors.primary.light},
       ${colors.primary.main},
       #8f5fff,
-      #6320ee
+      #6320ee,
+      #8f5fff,
+      ${colors.primary.main}
     );
+    background-size: 400% 400%;
     -webkit-mask: 
       linear-gradient(#fff 0 0) content-box, 
       linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    animation: borderBeam 3s ease infinite;
+    animation: borderBeam 4s ease infinite;
   }
   
   @keyframes borderBeam {
@@ -685,12 +694,42 @@ const AIBadge = styled.div`
   display: inline-flex;
   align-items: center;
   background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  background-size: 200% 100%;
   color: white;
   font-size: ${typography.fontSize.xs};
   font-weight: ${typography.fontWeight.medium};
   border-radius: 4px;
   padding: 3px 8px;
   margin-bottom: ${spacing[3]};
+  animation: shimmerBadge 2s ease-in-out infinite alternate;
+  
+  svg {
+    animation: pulseIcon 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmerBadge {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  @keyframes pulseIcon {
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+  }
 `;
 
 const PurchaseSummary = styled.div`
@@ -769,6 +808,87 @@ const MOTAdvisoryItem = styled.li`
     color: ${colors.state.warning};
     font-weight: bold;
   }
+`;
+
+// Update the SmallAITag to remove the border effect
+const SmallAITag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  background-size: 200% 100%;
+  color: white;
+  font-size: 11px;
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 3px;
+  padding: 2px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: shimmerBadge 2s ease-in-out infinite alternate;
+`;
+
+// Update the registration display in the SpecsGrid section
+const AIDetectedRegistration = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  background-color: rgba(101, 31, 255, 0.05);
+  border-radius: 3px;
+  margin-right: 5px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 3px;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      ${colors.primary.light},
+      ${colors.primary.main},
+      #8f5fff,
+      #6320ee,
+      #8f5fff,
+      ${colors.primary.main}
+    );
+    background-size: 400% 400%;
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: borderBeamSmall 4s ease infinite;
+  }
+`;
+
+// Add a styled component for the MOT repair estimate section
+const RepairEstimateContainer = styled.div`
+  margin-top: ${spacing[4]};
+  padding: ${spacing[4]};
+  background-color: ${colors.state.warning}10;
+  border-left: 3px solid ${colors.state.warning};
+  border-radius: 4px;
+`;
+
+const RepairEstimateTitle = styled.div`
+  display: flex;
+  align-items: center;
+  font-weight: ${typography.fontWeight.medium};
+  margin-bottom: ${spacing[2]};
+  
+  svg {
+    margin-right: ${spacing[2]};
+    color: ${colors.state.warning};
+  }
+`;
+
+const RepairEstimateContent = styled.div`
+  white-space: pre-line;
+  line-height: 1.6;
 `;
 
 // Component
@@ -1023,8 +1143,15 @@ const ListingDetailPage = () => {
               )}
               {listing.vehicle.registration && (
                 <SpecItem>
-                  <SpecLabel>Registration</SpecLabel>
-                  <SpecValue>{listing.vehicle.registration}</SpecValue>
+                  <SpecLabel>
+                    Registration
+                    {listing.vehicle.registration_source === "ai_vision" && (
+                      <SmallAITag>AI</SmallAITag>
+                    )}
+                  </SpecLabel>
+                  <SpecValue>
+                    {listing.vehicle.registration}
+                  </SpecValue>
                 </SpecItem>
               )}
               {listing.vehicle.vin && (
@@ -1050,7 +1177,59 @@ const ListingDetailPage = () => {
         </div>
       </ListingGrid>
       
-      {/* Add AI Purchase Summary Section - Before Mileage Graph & MOT History */}
+      {/* MOT Repair Estimate Section - At the top of additional sections */}
+      {listing.vehicle.mot_repair_estimate && (
+        <div style={{ marginTop: spacing[8] }}>
+          <DetailSection>
+            <SectionTitle>MOT Repair Estimate</SectionTitle>
+            <RepairEstimateContainer>
+              <RepairEstimateTitle>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" 
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
+                Repair Cost Analysis
+              </RepairEstimateTitle>
+              <RepairEstimateContent>
+                {listing.vehicle.mot_repair_estimate}
+              </RepairEstimateContent>
+            </RepairEstimateContainer>
+          </DetailSection>
+        </div>
+      )}
+      
+      {/* Expected Lifetime Section - After repair estimate */}
+      {listing.vehicle.expected_lifetime && (
+        <div style={{ marginTop: spacing[8] }}>
+          <DetailSection>
+            <SectionTitle>Vehicle Lifetime Projection</SectionTitle>
+            <AIPoweredContainer>
+              <AIBadge>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                </svg>
+                AI-Generated Projection
+              </AIBadge>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: spacing[2] }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: spacing[3], color: colors.primary.main }}>
+                  <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" 
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <PurchaseSummary style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.medium }}>
+                  {listing.vehicle.expected_lifetime}
+                </PurchaseSummary>
+              </div>
+              <div style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm, marginTop: spacing[2] }}>
+                This projection is based on the vehicle's make, model, age, mileage, and MOT history. It represents an estimate of how much longer this vehicle may remain reliable with proper maintenance.
+              </div>
+            </AIPoweredContainer>
+          </DetailSection>
+        </div>
+      )}
+      
+      {/* Add AI Purchase Summary Section - After Expected Lifetime */}
       {listing.vehicle.purchase_summary ? (
         <AIPurchaseSummarySection>
           <DetailSection>

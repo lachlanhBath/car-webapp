@@ -16,6 +16,12 @@ interface VehicleSummary {
   transmission: string | null;
   mileage?: number;
   purchase_summary?: string;
+  registration?: string;
+  registration_source?: string;
+  mot_status?: string;
+  mot_expiry_date?: string;
+  mot_repair_estimate?: string;
+  expected_lifetime?: string;
 }
 
 interface Listing {
@@ -172,6 +178,9 @@ const SpecLabel = styled.span`
   font-size: ${typography.fontSize.xs};
   color: ${colors.text.secondary};
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const SpecValue = styled.span`
@@ -181,13 +190,14 @@ const SpecValue = styled.span`
 const PurchaseSummaryPreview = styled.div`
   margin-top: ${spacing[2]};
   margin-bottom: ${spacing[4]};
-  color: ${colors.text.secondary};
+  color: ${colors.text.primary};
   font-size: ${typography.fontSize.sm};
+  font-weight: ${typography.fontWeight.medium};
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 `;
 
@@ -208,18 +218,21 @@ const AIPoweredContainer = styled.div`
     border-radius: 6px;
     padding: 2px;
     background: linear-gradient(
-      45deg,
+      135deg,
       ${colors.primary.light},
       ${colors.primary.main},
       #8f5fff,
-      #6320ee
+      #6320ee,
+      #8f5fff,
+      ${colors.primary.main}
     );
+    background-size: 400% 400%;
     -webkit-mask: 
       linear-gradient(#fff 0 0) content-box, 
       linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    animation: borderBeam 3s ease infinite;
+    animation: borderBeam 4s ease infinite;
   }
   
   @keyframes borderBeam {
@@ -239,12 +252,42 @@ const AIBadge = styled.div`
   display: inline-flex;
   align-items: center;
   background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  background-size: 200% 100%;
   color: white;
   font-size: ${typography.fontSize.xs};
   font-weight: ${typography.fontWeight.medium};
   border-radius: 4px;
   padding: 2px 6px;
   margin-bottom: ${spacing[2]};
+  animation: shimmerBadge 2s ease-in-out infinite alternate;
+  
+  svg {
+    animation: pulseIcon 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmerBadge {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  @keyframes pulseIcon {
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+  }
 `;
 
 const PaginationContainer = styled.div`
@@ -278,6 +321,121 @@ const EmptyState = styled.div`
   p {
     color: ${colors.text.secondary};
     margin-bottom: ${spacing[6]};
+  }
+`;
+
+// Update SmallAITag to remove the border effect
+const SmallAITag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  background-size: 200% 100%;
+  color: white;
+  font-size: 10px;
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: shimmerBadge 2s ease-in-out infinite alternate;
+`;
+
+// Update the registration field in the listings card
+const AIDetectedRegistration = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  background-color: rgba(101, 31, 255, 0.05);
+  border-radius: 3px;
+  margin-right: 4px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 3px;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      ${colors.primary.light},
+      ${colors.primary.main},
+      #8f5fff,
+      #6320ee,
+      #8f5fff,
+      ${colors.primary.main}
+    );
+    background-size: 400% 400%;
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: borderBeamSmall 4s ease infinite;
+  }
+`;
+
+// Add a styled component for the MOT status badge
+const MOTStatusBadge = styled.span<{ status?: string }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  background-color: ${props => 
+    props.status?.toLowerCase() === 'valid' ? `${colors.state.success}20` : 
+    props.status?.toLowerCase() === 'expired' ? `${colors.state.error}20` : 
+    `${colors.state.warning}20`
+  };
+  color: ${props => 
+    props.status?.toLowerCase() === 'valid' ? colors.state.success : 
+    props.status?.toLowerCase() === 'expired' ? colors.state.error : 
+    colors.state.warning
+  };
+  white-space: nowrap;
+`;
+
+// Add a styled component for the repair estimate badge
+const RepairEstimateBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background-color: ${colors.state.warning}15;
+  color: ${colors.state.warning};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: ${spacing[2]};
+  margin-bottom: ${spacing[2]};
+  
+  svg {
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+`;
+
+// Add a styled component for the expected lifetime badge
+const ExpectedLifetimeBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background-color: ${colors.primary.main}15;
+  color: ${colors.primary.main};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: ${spacing[2]};
+  margin-bottom: ${spacing[2]};
+  
+  svg {
+    margin-right: 4px;
+    flex-shrink: 0;
   }
 `;
 
@@ -334,7 +492,7 @@ const ListingsPage: React.FC = () => {
         
         if (response && Array.isArray(response.listings)) {
           // Ensure each listing has a vehicle property
-          const processedListings = response.listings.map(listing => ({
+          const processedListings = response.listings.map((listing: any) => ({
             ...listing,
             vehicle: listing.vehicle || {
               make: 'Unknown',
@@ -630,7 +788,75 @@ const ListingsPage: React.FC = () => {
                           {vehicle.mileage ? `${vehicle.mileage.toLocaleString()} miles` : 'Unknown'}
                         </SpecValue>
                       </SpecItem>
+                      
+                      {vehicle.registration && (
+                        <SpecItem>
+                          <SpecLabel>
+                            Reg
+                            {vehicle.registration_source === "ai_vision" && (
+                              <SmallAITag>AI</SmallAITag>
+                            )}
+                          </SpecLabel>
+                          <SpecValue>
+                            {vehicle.registration}
+                          </SpecValue>
+                        </SpecItem>
+                      )}
+                      
+                      {vehicle.mot_status && (
+                        <SpecItem>
+                          <SpecLabel>MOT</SpecLabel>
+                          <SpecValue>
+                            <MOTStatusBadge status={vehicle.mot_status}>
+                              {vehicle.mot_status}
+                              {vehicle.mot_expiry_date && vehicle.mot_status.toLowerCase() === 'valid' && 
+                                ` - Exp. ${new Date(vehicle.mot_expiry_date).toLocaleDateString('en-GB', { 
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: '2-digit'
+                                })}`
+                              }
+                            </MOTStatusBadge>
+                          </SpecValue>
+                        </SpecItem>
+                      )}
                     </ListingSpecs>
+                    
+                    {vehicle.purchase_summary && (
+                      <AIPoweredContainer>
+                        <AIBadge>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '4px' }}>
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                            <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                            <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                          </svg>
+                          AI Analysis
+                        </AIBadge>
+                        <PurchaseSummaryPreview>
+                          {vehicle.purchase_summary}
+                        </PurchaseSummaryPreview>
+                      </AIPoweredContainer>
+                    )}
+
+                    {vehicle.mot_repair_estimate && (
+                      <RepairEstimateBadge>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" 
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                        </svg>
+                        MOT Repair Estimate Available
+                      </RepairEstimateBadge>
+                    )}
+
+                    {vehicle.expected_lifetime && (
+                      <ExpectedLifetimeBadge>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Expected Lifetime: {vehicle.expected_lifetime}
+                      </ExpectedLifetimeBadge>
+                    )}
 
                     <Button
                       as={Link}
