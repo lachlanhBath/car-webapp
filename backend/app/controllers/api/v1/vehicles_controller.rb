@@ -39,9 +39,11 @@ module Api
           body_type: vehicle.body_type,
           doors: vehicle.doors,
           registration: vehicle.registration,
+          registration_source: vehicle.registration_source,
           vin: vehicle.vin,
           mileage: vehicle.mileage,
           purchase_summary: vehicle.purchase_summary,
+          mot_repair_estimate: vehicle.mot_repair_estimate,
           listing: vehicle.listing ? {
             id: vehicle.listing.id,
             title: vehicle.listing.title,
@@ -58,7 +60,8 @@ module Api
               advisory_notes: mot.advisory_notes,
               failure_reasons: mot.failure_reasons
             }
-          end
+          end,
+          expected_lifetime: vehicle.expected_lifetime
         }
       end
     end
