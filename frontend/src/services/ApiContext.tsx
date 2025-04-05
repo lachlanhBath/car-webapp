@@ -1,15 +1,35 @@
 import React, { createContext, useContext } from 'react';
-import { mockData } from '../mocks/data';
+import { listingsService, ListingsParams } from '../api/listingsService';
+import { vehiclesService } from '../api/vehiclesService';
+import { searchesService } from '../api/searchesService';
 
-// Define the shape of the context
+// Define the shape of the context with real API services
 interface ApiContextType {
-  apiClient: typeof mockData;
+  listings: {
+    getListings: (params?: ListingsParams) => Promise<any>;
+    getListingById: (id: string) => Promise<any>;
+  };
+  vehicles: {
+    getVehicleById: (id: string) => Promise<any>;
+    getVehicleMOTHistory: (id: string) => Promise<any>;
+    lookupVehicleByRegistration: (registration: string) => Promise<any>;
+  };
+  searches: {
+    saveSearch: (params: any) => Promise<any>;
+    getRecentSearches: () => Promise<any>;
+    getPopularSearches: () => Promise<any>;
+  };
 }
 
-// Create context with a default value
-export const ApiContext = createContext<ApiContextType>({
-  apiClient: mockData,
-});
+// Create real API services
+const realApiServices: ApiContextType = {
+  listings: listingsService,
+  vehicles: vehiclesService,
+  searches: searchesService
+};
+
+// Create context with real API services
+export const ApiContext = createContext<ApiContextType>(realApiServices);
 
 // Custom hook to use the API context
 export const useApi = () => useContext(ApiContext);
@@ -17,15 +37,22 @@ export const useApi = () => useContext(ApiContext);
 // Provider component for wrapping the app
 interface ApiProviderProps {
   children: React.ReactNode;
-  client?: typeof mockData;
+  // For testing, we might still need to override the services
+  services?: Partial<ApiContextType>;
 }
 
 export const ApiProvider: React.FC<ApiProviderProps> = ({ 
   children, 
-  client = mockData 
+  services = {} 
 }) => {
+  // Merge any provided services with the default real API services
+  const apiServices = {
+    ...realApiServices,
+    ...services
+  };
+
   return (
-    <ApiContext.Provider value={{ apiClient: client }}>
+    <ApiContext.Provider value={apiServices}>
       {children}
     </ApiContext.Provider>
   );

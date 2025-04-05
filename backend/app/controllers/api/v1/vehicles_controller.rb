@@ -6,6 +6,24 @@ module Api
         render json: vehicle_json(@vehicle)
       end
       
+      def lookup
+        registration = params[:registration]
+        
+        unless registration.present?
+          return render json: { error: "Registration is required" }, status: :bad_request
+        end
+        
+        @vehicle = Vehicle.find_by(registration: registration)
+        
+        if @vehicle
+          render json: { vehicle: vehicle_json(@vehicle) }
+        else
+          # If vehicle not found, create a background job to fetch its data
+          job = FetchVehicleByRegistrationJob.perform_later(registration)
+          render json: { error: "Vehicle not found", job_id: job.job_id }, status: :not_found
+        end
+      end
+      
       private
       
       def vehicle_json(vehicle)
@@ -22,12 +40,12 @@ module Api
           doors: vehicle.doors,
           registration: vehicle.registration,
           vin: vehicle.vin,
-          listing: {
+          listing: vehicle.listing ? {
             id: vehicle.listing.id,
             title: vehicle.listing.title,
             price: vehicle.listing.price,
             source_url: vehicle.listing.source_url
-          },
+          } : nil,
           mot_histories: vehicle.mot_histories.chronological.map do |mot|
             {
               id: mot.id,

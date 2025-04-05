@@ -11,9 +11,44 @@ class VehicleResource < Madmin::Resource
   attribute :body_type
   attribute :doors
   attribute :registration
-  attribute :vin
+  attribute :registration_confidence
+  attribute :registration_source
+  attribute :registration_image_url
+  attribute :co2_emissions
+  attribute :tax_status
+  attribute :tax_due_date
+  attribute :mot_status
+  attribute :mot_expiry_date
+  attribute :price
   attribute :created_at, form: false
   attribute :updated_at, form: false
+
+  # t.bigint "listing_id", null: false
+  #   t.string "make"
+  #   t.string "model"
+  #   t.integer "year"
+  #   t.string "fuel_type"
+  #   t.string "transmission"
+  #   t.string "engine_size"
+  #   t.string "color"
+  #   t.string "body_type"
+  #   t.integer "doors"
+  #   t.string "registration", null: false
+  #   t.string "vin"
+  #   t.datetime "created_at", null: false
+  #   t.datetime "updated_at", null: false
+  #   t.float "registration_confidence"
+  #   t.string "registration_source"
+  #   t.string "registration_image_url"
+  #   t.text "dvla_data"
+  #   t.integer "co2_emissions"
+  #   t.string "tax_status"
+  #   t.date "tax_due_date"
+  #   t.string "mot_status"
+  #   t.date "mot_expiry_date"
+  #   t.integer "price"#
+  
+  
 
   # Associations
   attribute :listing

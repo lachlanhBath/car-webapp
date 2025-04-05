@@ -10,35 +10,31 @@ import Input from '../components/UI/Input';
 // Types for our data
 interface VehicleSummary {
   make: string;
-  model: string;
+  model: string | null;
   year: number;
   fuel_type: string;
-  transmission: string;
-  mileage: number;
+  transmission: string | null;
+  mileage?: number;
 }
 
 interface Listing {
-  id: string;
+  id: number;
   title: string;
-  price: number;
-  location: string;
-  description: string;
+  price: string;
+  location: string | null;
+  description?: string;
   post_date: string;
-  source_url: string;
+  source_url?: string;
   image_urls: string[];
   vehicle: VehicleSummary;
 }
 
 interface ListingsResponse {
-  status: string;
-  data: {
-    listings: Listing[];
-    pagination: {
-      current_page: number;
-      total_pages: number;
-      total_count: number;
-      per_page: number;
-    };
+  listings: Listing[];
+  meta: {
+    current_page: number;
+    total_pages: number;
+    total_count: number;
   };
 }
 
@@ -217,7 +213,7 @@ const EmptyState = styled.div`
 
 // Main component
 const ListingsPage: React.FC = () => {
-  const { apiClient } = useApi();
+  const { listings: listingsApi } = useApi();
   const [listings, setListings] = useState<Listing[]>([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -250,7 +246,7 @@ const ListingsPage: React.FC = () => {
       per_page: pagination.perPage
     };
     
-    // Add filters if they're set
+    // Add filters if they have values
     if (filters.make) params.make = filters.make;
     if (filters.model) params.model = filters.model;
     if (filters.minPrice) params.min_price = Number(filters.minPrice);
@@ -260,20 +256,35 @@ const ListingsPage: React.FC = () => {
     if (filters.fuelType) params.fuel_type = filters.fuelType;
     if (filters.transmission) params.transmission = filters.transmission;
     
-    // Call the mock API
-    const response = apiClient.getListings(params) as ListingsResponse;
-    
-    if (response.status === 'success') {
-      setListings(response.data.listings);
-      setPagination({
-        currentPage: response.data.pagination.current_page,
-        totalPages: response.data.pagination.total_pages,
-        totalCount: response.data.pagination.total_count,
-        perPage: response.data.pagination.per_page
+    listingsApi.getListings(params)
+      .then((response) => {
+        // The API returns the listings directly in the response object
+        // The interceptor in client.ts already extracts response.data for us
+        console.log('API Response:', response);
+        
+        if (response && Array.isArray(response.listings)) {
+          setListings(response.listings);
+          
+          // Handle meta data if it exists
+          if (response.meta) {
+            setPagination({
+              currentPage: response.meta.current_page || 1,
+              totalPages: response.meta.total_pages || 1,
+              totalCount: response.meta.total_count || 0,
+              perPage: pagination.perPage
+            });
+          }
+        } else {
+          console.error('Unexpected API response format:', response);
+          setListings([]);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching listings:', error);
+      })
+      .finally(() => {
+        setLoading(false);
       });
-    }
-    
-    setLoading(false);
   };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -307,12 +318,13 @@ const ListingsPage: React.FC = () => {
   };
 
   // Format price with currency symbol
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: string | number) => {
+    const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
       maximumFractionDigits: 0
-    }).format(price);
+    }).format(numericPrice);
   };
 
   // Format date
@@ -517,7 +529,7 @@ const ListingsPage: React.FC = () => {
                     
                     <SpecItem>
                       <SpecLabel>Mileage</SpecLabel>
-                      <SpecValue>{listing.vehicle.mileage.toLocaleString()} miles</SpecValue>
+                      <SpecValue>{listing.vehicle.mileage?.toLocaleString()} miles</SpecValue>
                     </SpecItem>
                   </ListingSpecs>
                   

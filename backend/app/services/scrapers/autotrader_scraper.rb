@@ -804,6 +804,7 @@ module Scrapers
       # Save the listing
       if listing.save
         puts "Saved listing: #{listing.title}"
+        # The listing after_commit callback will handle vehicle creation and registration extraction
       else
         puts "Error saving listing: #{listing.errors.full_messages.join(', ')}"
       end

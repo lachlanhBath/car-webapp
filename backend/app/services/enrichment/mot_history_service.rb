@@ -1,80 +1,117 @@
+require "net/http"
+require "json"
+
 module Enrichment
   class MotHistoryService
-    def self.fetch_history(registration)
-      # This is a placeholder implementation
-      # In a real service, this would call an external API to get MOT history
-      # based on the vehicle registration number
-      
-      # For demo purposes, we'll generate some mock data
-      generate_mock_data(registration)
+    TOKEN_URL = "https://login.microsoftonline.com/a455b827-244f-4c97-b5b4-ce5d13b4d00c/oauth2/v2.0/token"
+    BASE_URL = "https://history.mot.api.gov.uk"
+    SCOPE_URL = "https://tapi.dvsa.gov.uk/.default"
+
+    def initialize(api_key = nil)
+      @api_key = api_key || ENV["MOT_HISTORY_API_KEY"]
     end
-    
+
+    def fetch_history(registration)
+      # Simply return the raw API response
+      fetch_mot_history(registration)
+    end
+
     private
-    
-    def self.generate_mock_data(registration)
-      # Create between 1 and 5 MOT tests over the past few years
-      num_tests = rand(1..5)
-      
-      tests = []
-      last_date = Date.current - rand(1..6).months
-      last_mileage = rand(30000..70000)
-      
-      num_tests.times do |i|
-        test_date = last_date - i.years
-        result = rand(10) < 8 ? 'pass' : 'fail' # 80% pass rate
-        
-        # Generate a random mileage that increases over time (newer tests have higher mileage)
-        mileage = if i == 0
-                    last_mileage
-                  else
-                    tests.last[:odometer] - rand(5000..10000)
-                  end
-        
-        tests << {
-          test_date: test_date,
-          expiry_date: result == 'pass' ? test_date + 1.year : nil,
-          odometer: mileage,
-          result: result,
-          advisory_notes: result == 'pass' ? generate_advisories : nil,
-          failure_reasons: result == 'fail' ? generate_failures : nil
-        }
+
+    def fetch_mot_history(registration_number)
+      clean_reg = sanitize_registration(registration_number)
+      Rails.logger.info("Fetching MOT history for: #{clean_reg}")
+
+      if ENV["MOT_HISTORY_CLIENT_ID"].blank? || ENV["MOT_HISTORY_CLIENT_SECRET"].blank? || @api_key.blank?
+        Rails.logger.error("Missing MOT History API credentials")
+        return {"error" => "Missing MOT History API credentials"}
       end
-      
-      tests
+
+      access_token = get_access_token
+      if access_token.blank?
+        Rails.logger.error("Failed to obtain access token")
+        return {"error" => "Failed to authenticate with MOT History API"}
+      end
+
+      uri = URI.parse("#{BASE_URL}/v1/trade/vehicles/registration/#{clean_reg}")
+      Rails.logger.info("Making request to: #{uri}")
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{access_token}"
+      request["x-api-key"] = @api_key
+
+      Rails.logger.info("Sending request with headers: Authorization=Bearer TOKEN, x-api-key=#{@api_key}")
+
+      response = http.request(request)
+
+      Rails.logger.info("Response status: #{response.code}")
+
+      case response
+      when Net::HTTPSuccess
+        Rails.logger.info("Successful response received.")
+        begin
+          parsed_data = JSON.parse(response.body)
+          Rails.logger.info("Response body: #{safe_truncate(parsed_data.inspect)}")
+          # Return raw parsed data without processing
+          parsed_data
+        rescue JSON::ParserError => e
+          Rails.logger.error("JSON parsing error: #{e.message}")
+          Rails.logger.error("Response body: #{safe_truncate(response.body)}")
+          {"error" => "Failed to parse API response: #{e.message}"}
+        end
+      when Net::HTTPNotFound
+        Rails.logger.info("Vehicle not found")
+        {"error" => "Vehicle MOT history not found"}
+      else
+        Rails.logger.error("API error: #{response.code} - #{response.message}")
+        Rails.logger.error("Response body: #{safe_truncate(response.body)}")
+        {"error" => "API error: #{response.code} - #{response.message}"}
+      end
+    rescue => e
+      Rails.logger.error("MOT history request failed: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      {"error" => "Request failed: #{e.message}"}
     end
-    
-    def self.generate_advisories
-      advisories = [
-        'Tyre worn close to legal limit',
-        'Brake pads wearing thin',
-        'Slight oil leak',
-        'Windscreen has minor chips',
-        'Suspension component has slight play',
-        'Slight exhaust smoke visible during acceleration',
-        'Minor corrosion on brake pipes',
-        'Registration plate slightly damaged',
-        'Wiper blades wearing but still effective'
-      ]
-      
-      # Return between 0 and 3 random advisories
-      advisories.sample(rand(0..3)).join('. ')
+
+    def sanitize_registration(registration)
+      registration.gsub(/[^A-Z0-9]/i, "").upcase
     end
-    
-    def self.generate_failures
-      failures = [
-        'Brake efficiency below minimum requirement',
-        'Tyre tread depth below legal limit',
-        'Headlight aim out of alignment',
-        'Excessive exhaust emissions',
-        'Steering component has excessive play',
-        'Brake pipe corroded to the extent that failure is imminent',
-        'Suspension component fractured or excessively worn',
-        'Fuel leak present',
-        'Seatbelt damaged or not functioning correctly'
-      ]
-      
-      # Return between 1 and 3 random failures
-      failures.sample(rand(1..3)).join('. ')
+
+    def safe_truncate(str, length = 500)
+      return "" if str.nil?
+      (str.length > length) ? str[0...length] + "..." : str
+    end
+
+    def get_access_token
+      uri = URI(TOKEN_URL)
+      request = Net::HTTP::Post.new(uri)
+      request.set_form_data(
+        "grant_type" => "client_credentials",
+        "client_id" => ENV["MOT_HISTORY_CLIENT_ID"],
+        "client_secret" => ENV["MOT_HISTORY_CLIENT_SECRET"],
+        "scope" => SCOPE_URL
+      )
+
+      http = Net::HTTP.new(uri.hostname, uri.port)
+      http.use_ssl = true
+
+      response = http.request(request)
+
+      if response.code == "200"
+        token_data = JSON.parse(response.body)
+        token_data["access_token"]
+      else
+        Rails.logger.error("Failed to get access token: #{response.body}")
+        nil
+      end
+    rescue => e
+      Rails.logger.error("Error getting access token: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      nil
     end
   end
-end 
+end

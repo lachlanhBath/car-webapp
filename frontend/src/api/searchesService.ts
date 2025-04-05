@@ -8,5 +8,9 @@ export const searchesService = {
   
   getRecentSearches: async () => {
     return apiClient.get('/searches/recent');
+  },
+  
+  getPopularSearches: async () => {
+    return apiClient.get('/searches/popular');
   }
 }; 

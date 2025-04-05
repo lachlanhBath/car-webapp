@@ -1,258 +1,233 @@
 module Enrichment
   class VehicleDataService
     def self.extract_from_listing(listing)
-      # Try to extract data from listing specs first
-      specs_data = extract_from_specs(listing)
-      return specs_data if specs_data.values.any?
+      return {} unless listing
 
-      # If specs extraction failed, extract from title and description
-      title = listing.title.to_s.downcase
-      description = listing.description.to_s.downcase
+      data = {}
+
+      # Extract year, make, model from title
+      if listing.title.present?
+        title_data = parse_title(listing.title)
+        data.merge!(title_data)
+      end
+
+      # Extract specifications from specs array
+      if listing.specs.present?
+        specs_data = parse_specs(listing.specs)
+        # Merge but don't overwrite existing data from title
+        specs_data.each do |key, value|
+          data[key] = value unless data[key].present?
+        end
+      end
+
+      # Extract from description
+      if listing.description.present?
+        desc_data = parse_description(listing.description)
+        # Merge but don't overwrite existing data
+        desc_data.each do |key, value|
+          data[key] = value unless data[key].present?
+        end
+      end
+
+      # Fallbacks and defaults
+      data[:year] ||= extract_year_from_date(listing.post_date)
       
-      # Combine text for better extraction
-      full_text = "#{title} #{description}"
-      
-      # Some basic extraction logic
-      make = extract_make(full_text)
-      model = extract_model(full_text, make)
-      year = extract_year(full_text)
-      fuel_type = extract_fuel_type(full_text)
-      transmission = extract_transmission(full_text)
-      engine_size = extract_engine_size(full_text)
-      body_type = extract_body_type(full_text)
-      
-      {
-        make: make,
-        model: model,
-        year: year,
-        fuel_type: fuel_type,
-        transmission: transmission,
-        engine_size: engine_size,
-        body_type: body_type
-      }
+      # Filter to only include valid Vehicle attributes
+      valid_attributes = %w[
+        make model year fuel_type transmission engine_size 
+        color body_type doors vin
+      ]
+
+      # Return only valid attributes
+      data.slice(*valid_attributes.map(&:to_sym))
     end
-    
+
     private
-    
-    def self.extract_from_specs(listing)
-      result = {
-        make: nil,
-        model: nil,
-        year: nil,
-        fuel_type: nil,
-        transmission: nil,
-        engine_size: nil,
-        body_type: nil,
-        color: nil,
-        doors: nil
-      }
+
+    def self.parse_title(title)
+      data = {}
       
-      # Try to extract from specs in raw_data
-      specs = listing.specs
-      specs.each do |spec|
-        spec = spec.to_s.downcase
-        
-        # Year
-        if spec =~ /\b(19|20)\d{2}\b/ && !result[:year]
-          result[:year] = spec.match(/\b(19|20)\d{2}\b/)[0].to_i
-        end
-        
-        # Fuel type
-        if (spec.include?('petrol') || spec.include?('diesel') || 
-            spec.include?('electric') || spec.include?('hybrid')) && !result[:fuel_type]
-          result[:fuel_type] = extract_fuel_type(spec)
-        end
-        
-        # Transmission
-        if (spec.include?('manual') || spec.include?('automatic')) && !result[:transmission]
-          result[:transmission] = extract_transmission(spec)
-        end
-        
-        # Engine size
-        if spec =~ /\b\d+(\.\d+)?\s*l(itre)?\b/ && !result[:engine_size]
-          result[:engine_size] = spec.match(/\b\d+(\.\d+)?\s*l(itre)?\b/)[0]
-        end
-        
-        # Body type
-        body_types = ['hatchback', 'sedan', 'saloon', 'estate', 'suv', 'coupe', 'convertible', 'mpv', 'van', 'pickup']
-        body_types.each do |type|
-          if spec.include?(type) && !result[:body_type]
-            result[:body_type] = type == 'saloon' ? 'sedan' : type
-          end
-        end
-        
-        # Doors
-        if spec =~ /\b\d\s*door/ && !result[:doors]
-          result[:doors] = spec.match(/\b(\d)\s*door/)[1].to_i
-        end
-        
-        # Color
-        colors = ['black', 'white', 'silver', 'grey', 'gray', 'blue', 'red', 'green', 'yellow', 'orange', 'purple', 'brown']
-        colors.each do |color|
-          if spec.include?(color) && !result[:color]
-            result[:color] = color
-          end
-        end
+      # Try to extract year (4 digit number between 1900-2030)
+      if title =~ /\b(19\d{2}|20[0-2]\d)\b/
+        data[:year] = $1.to_i
       end
       
-      # Try to extract make and model from title if not found in specs
-      if !result[:make] || !result[:model]
-        title = listing.title.to_s.downcase
-        result[:make] ||= extract_make(title)
-        result[:model] ||= extract_model(title, result[:make])
-      end
-      
-      result
-    end
-    
-    def self.extract_make(text)
-      # Expanded list of car makes
-      common_makes = [
-        'ford', 'toyota', 'honda', 'audi', 'bmw', 'mercedes', 'vauxhall', 'volkswagen', 'vw',
-        'nissan', 'hyundai', 'kia', 'mazda', 'peugeot', 'renault', 'seat', 'skoda', 'volvo', 
-        'fiat', 'citroen', 'mini', 'lexus', 'jaguar', 'land rover', 'mitsubishi', 'suzuki', 
-        'tesla', 'dacia', 'jeep', 'porsche', 'subaru'
+      # Common car manufacturers
+      manufacturers = [
+        'Audi', 'BMW', 'Citroen', 'Dacia', 'Fiat', 'Ford', 'Honda', 'Hyundai', 
+        'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes', 
+        'Mercedes-Benz', 'Mini', 'Mitsubishi', 'Nissan', 'Peugeot', 'Porsche', 
+        'Renault', 'Seat', 'Skoda', 'Suzuki', 'Tesla', 'Toyota', 'Vauxhall', 
+        'Volkswagen', 'Volvo'
       ]
       
-      # Try to find make in text
-      common_makes.each do |make|
-        return make.capitalize if text =~ /\b#{make}\b/
+      # Extract make (manufacturer)
+      manufacturers.each do |make|
+        if title =~ /\b#{make}\b/i
+          data[:make] = make
+          
+          # Remove the make from the title to help with model extraction
+          remaining_text = title.sub(/\b#{make}\b/i, '')
+          
+          # Check for common models for this make
+          model = extract_model_for_make(make, remaining_text)
+          data[:model] = model if model
+          
+          break
+        end
       end
       
-      # Special case for Mercedes-Benz which might be written in various ways
-      if text =~ /\bmercedes[\s\-]?benz\b/ || text =~ /\bmercedes\b/
-        return 'Mercedes'
+      # Extract additional attributes
+      fuel_types = ['Petrol', 'Diesel', 'Hybrid', 'Electric', 'PHEV']
+      fuel_types.each do |fuel|
+        if title =~ /\b#{fuel}\b/i
+          data[:fuel_type] = fuel
+          break
+        end
       end
       
-      # Special case for Volkswagen which might be abbreviated as VW
-      if text =~ /\bvw\b/ || text =~ /\bvolkswagen\b/
-        return 'Volkswagen'
+      transmissions = ['Manual', 'Automatic', 'Semi-Auto', 'CVT', 'DSG']
+      transmissions.each do |transmission|
+        if title =~ /\b#{transmission}\b/i
+          data[:transmission] = transmission
+          break
+        end
       end
       
-      nil
+      # Extract mileage (number followed by 'miles')
+      if title =~ /\b(\d{1,3}(?:,\d{3})*|\d+)\s*miles\b/i
+        mileage_str = $1.gsub(',', '')
+        data[:mileage] = mileage_str.to_i
+      end
+      
+      data
     end
     
-    def self.extract_model(text, make)
-      return nil unless make
-      
-      # Expanded model data
-      common_models = {
-        'ford' => ['fiesta', 'focus', 'mondeo', 'kuga', 'mustang', 'ecosport', 'edge', 'ka', 'galaxy', 's-max', 'puma'],
-        'toyota' => ['corolla', 'yaris', 'prius', 'rav4', 'aygo', 'camry', 'c-hr', 'land cruiser', 'hilux', 'gt86'],
-        'honda' => ['civic', 'accord', 'jazz', 'cr-v', 'hr-v', 'nsx', 'e'],
-        'audi' => ['a1', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'q2', 'q3', 'q5', 'q7', 'q8', 'tt', 'r8', 'e-tron'],
-        'bmw' => ['1 series', '2 series', '3 series', '4 series', '5 series', '6 series', '7 series', '8 series', 'x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7', 'z4', 'i3', 'i8'],
-        'mercedes' => ['a class', 'b class', 'c class', 'e class', 's class', 'cla', 'cls', 'gla', 'glb', 'glc', 'gle', 'gls', 'slk', 'sl', 'amg gt'],
-        'vauxhall' => ['corsa', 'astra', 'insignia', 'mokka', 'crossland', 'grandland', 'adam', 'viva'],
-        'volkswagen' => ['golf', 'polo', 'passat', 'tiguan', 't-roc', 't-cross', 'touareg', 'id.3', 'id.4', 'arteon', 'scirocco', 'up'],
-        'nissan' => ['micra', 'juke', 'qashqai', 'leaf', 'x-trail', 'gt-r', '370z', 'note', 'navara'],
-        'hyundai' => ['i10', 'i20', 'i30', 'tucson', 'kona', 'ioniq', 'santa fe'],
-        'kia' => ['picanto', 'rio', 'ceed', 'stonic', 'sportage', 'niro', 'sorento'],
-        'mazda' => ['2', '3', '6', 'cx-3', 'cx-30', 'cx-5', 'mx-5']
+    def self.extract_model_for_make(make, text)
+      # Dictionary of common models for each manufacturer
+      models_by_make = {
+        'Audi' => ['A1', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8', 'TT', 'R8', 'e-tron'],
+        'BMW' => ['1 Series', '2 Series', '3 Series', '4 Series', '5 Series', '6 Series', '7 Series', '8 Series', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'Z4', 'i3', 'i4', 'i8', 'M2', 'M3', 'M4', 'M5'],
+        'Ford' => ['Fiesta', 'Focus', 'Mondeo', 'Puma', 'Kuga', 'EcoSport', 'Edge', 'Mustang', 'S-Max', 'Galaxy', 'Ka'],
+        'Volkswagen' => ['Polo', 'Golf', 'ID.3', 'ID.4', 'Passat', 'Tiguan', 'T-Roc', 'T-Cross', 'Touareg', 'Arteon', 'Caddy', 'Transporter', 'Up'],
+        'Vauxhall' => ['Corsa', 'Astra', 'Insignia', 'Mokka', 'Crossland', 'Grandland', 'Combo', 'Vivaro'],
+        'Mercedes' => ['A-Class', 'B-Class', 'C-Class', 'E-Class', 'S-Class', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'EQA', 'EQC', 'CLA', 'CLS', 'AMG'],
+        'Mercedes-Benz' => ['A-Class', 'B-Class', 'C-Class', 'E-Class', 'S-Class', 'GLA', 'GLB', 'GLC', 'GLE', 'GLS', 'EQA', 'EQC', 'CLA', 'CLS', 'AMG']
       }
       
-      # Use more comprehensive regex patterns for model matching
-      models = common_models[make.downcase] || []
+      # Use a default empty array if the make isn't in our dictionary
+      models = models_by_make[make] || []
       
+      # Check for each model in the text
       models.each do |model|
-        # Create a regex pattern that can match the model even if it's part of another word
-        # For example, "Golf" should match in "Golf GT" or "Golf GTI"
-        if text =~ /\b#{Regexp.escape(model)}\b/i
-          return model.split.map(&:capitalize).join(' ')
+        return model if text =~ /\b#{Regexp.escape(model)}\b/i
+      end
+      
+      # For makes not in our dictionary or if no model matched, try to extract model from the remaining text
+      # This is a simplistic approach - in a real app, this would be more sophisticated
+      if models.empty?
+        # Take the first word after the make as the model, if it looks like a model name
+        potential_model = text.strip.split(/\s+/).first
+        return potential_model if potential_model && potential_model.match?(/^[A-Za-z0-9\-\.]+$/)
+      end
+      
+      nil
+    end
+
+    def self.parse_specs(specs)
+      data = {}
+      
+      specs.each do |spec|
+        case spec
+        when /(\d{4})/
+          # Year
+          potential_year = $1.to_i
+          data[:year] = potential_year if potential_year.between?(1900, 2030)
+        when /(\d+(?:\.\d+)?)\s*L/i, /(\d+(?:\.\d+)?)\s*Litre/i
+          # Engine size
+          data[:engine_size] = $1.to_f * 1000 # Convert to cc
+        when /(\d{1,3}(?:,\d{3})*|\d+)\s*miles/i
+          # Mileage
+          mileage_str = $1.gsub(',', '')
+          data[:mileage] = mileage_str.to_i
+        when /(\d+)\s*doors/i
+          # Doors
+          data[:doors] = $1.to_i
+        when /Manual|Automatic|Semi-Auto|CVT|DSG/i
+          # Transmission
+          data[:transmission] = spec.match(/(Manual|Automatic|Semi-Auto|CVT|DSG)/i)[1]
+        when /Petrol|Diesel|Hybrid|Electric|PHEV/i
+          # Fuel type
+          data[:fuel_type] = spec.match(/(Petrol|Diesel|Hybrid|Electric|PHEV)/i)[1]
+        when /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+car/i, /body[: ]+([A-Z][a-z]+)/i
+          # Body type
+          data[:body_type] = $1
+        when /(White|Black|Silver|Grey|Blue|Red|Green|Yellow|Orange|Purple|Brown|Gold)/i
+          # Color
+          data[:color] = $1
         end
       end
       
-      # Special handling for BMW, Mercedes series which might be written in various ways
-      if make.downcase == 'bmw'
-        series_match = text.match(/\b(\d)[\s\-]?series\b/i)
-        return "#{series_match[1]} Series".capitalize if series_match
-        
-        # BMW X models
-        x_match = text.match(/\bx(\d)\b/i)
-        return "X#{x_match[1]}".capitalize if x_match
-      end
-      
-      # Handle Mercedes classes
-      if make.downcase == 'mercedes'
-        class_match = text.match(/\b([a-z])[\s\-]?class\b/i)
-        return "#{class_match[1].upcase}-Class" if class_match
-      end
-      
-      nil
+      data
     end
-    
-    def self.extract_year(text)
-      # Extract 4-digit year between 1900 and current year + 1
-      current_year = Time.current.year
-      years = text.scan(/\b(19\d{2}|20\d{2})\b/).flatten
+
+    def self.parse_description(description)
+      data = {}
       
-      years.each do |year|
-        year_num = year.to_i
-        return year_num if year_num.between?(1900, current_year + 1)
-      end
-      nil
-    end
-    
-    def self.extract_fuel_type(text)
-      if text =~ /\bdiesel\b/i
-        'diesel'
-      elsif text =~ /\belectric\b/i
-        'electric'
-      elsif text =~ /\bhybrid\b/i
-        'hybrid'
-      elsif text =~ /\bpetrol\b/i || text =~ /\bgasoline\b/i
-        'petrol'
-      elsif text =~ /\blpg\b/i
-        'lpg'
-      else
-        nil
-      end
-    end
-    
-    def self.extract_transmission(text)
-      if text =~ /\bautomatic\b/i
-        'automatic'
-      elsif text =~ /\bmanual\b/i
-        'manual'
-      elsif text =~ /\bsemi[\s\-]?automatic\b/i
-        'semi-automatic'
-      else
-        nil
-      end
-    end
-    
-    def self.extract_engine_size(text)
-      # Look for patterns like "2.0 litre", "1.6L", "1.5 TD", etc.
-      engine_match = text.match(/\b(\d+\.\d+)[\s\-]?l(itre)?\b/i)
-      return "#{engine_match[1]}L" if engine_match
-      
-      # Also try to match just the number with L
-      engine_match = text.match(/\b(\d+)[\s\-]?l(itre)?\b/i)
-      return "#{engine_match[1]}.0L" if engine_match
-      
-      nil
-    end
-    
-    def self.extract_body_type(text)
-      body_types = {
-        'hatchback' => ['hatchback', 'hatch'],
-        'sedan' => ['sedan', 'saloon'],
-        'estate' => ['estate', 'wagon', 'touring', 'station wagon'],
-        'suv' => ['suv', 'crossover', '4x4', 'off-road'],
-        'coupe' => ['coupe'],
-        'convertible' => ['convertible', 'cabriolet', 'roadster'],
-        'mpv' => ['mpv', 'minivan', 'people carrier'],
-        'van' => ['van', 'commercial'],
-        'pickup' => ['pickup', 'pick-up', 'truck']
-      }
-      
-      body_types.each do |type, keywords|
-        keywords.each do |keyword|
-          return type if text =~ /\b#{keyword}\b/i
-        end
+      # Year pattern
+      if description =~ /\b(19\d{2}|20[0-2]\d)\b/
+        data[:year] = $1.to_i
       end
       
-      nil
+      # Mileage pattern
+      if description =~ /\b(\d{1,3}(?:,\d{3})*|\d+)\s*miles\b/i
+        mileage_str = $1.gsub(',', '')
+        data[:mileage] = mileage_str.to_i
+      end
+      
+      # Engine size pattern
+      if description =~ /(\d+(?:\.\d+)?)\s*L\b/i || description =~ /(\d+(?:\.\d+)?)\s*Litre/i
+        data[:engine_size] = $1.to_f * 1000 # Convert to cc
+      end
+      
+      # Transmission
+      if description =~ /\b(Manual|Automatic|Semi-Auto|CVT|DSG)\b/i
+        data[:transmission] = $1
+      end
+      
+      # Fuel type
+      if description =~ /\b(Petrol|Diesel|Hybrid|Electric|PHEV)\b/i
+        data[:fuel_type] = $1
+      end
+      
+      # Body type
+      if description =~ /\b(Hatchback|Sedan|Saloon|Estate|SUV|Convertible|Coupe|MPV|Van)\b/i
+        data[:body_type] = $1
+      end
+      
+      # Number of doors
+      if description =~ /\b(\d+)[- ]?door\b/i
+        data[:doors] = $1.to_i
+      end
+      
+      # Number of previous owners
+      if description =~ /\b(\d+)\s+(?:previous )?owners?\b/i
+        data[:previous_owners] = $1.to_i
+      end
+      
+      # Check for service history mentions
+      if description =~ /\bfull\s+service\s+history\b/i || description =~ /\bFSH\b/
+        data[:service_history] = 'Full'
+      elsif description =~ /\bservice\s+history\b/i
+        data[:service_history] = 'Partial'
+      end
+      
+      data
+    end
+
+    def self.extract_year_from_date(date)
+      return nil unless date.is_a?(Date)
+      date.year
     end
   end
 end 
