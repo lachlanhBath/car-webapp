@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
@@ -443,11 +443,14 @@ const MileageGraphSection = styled.div`
   margin-top: ${spacing[8]};
 `;
 
-const MileageGraph = styled.div`
+const MileageGraph = styled.div<{ isVisible: boolean }>`
   background-color: ${colors.light.surface};
   border-radius: 12px;
   padding: ${spacing[6]};
   box-shadow: ${shadows.md};
+  opacity: ${props => props.isVisible ? 1 : 0};
+  transform: translateY(${props => props.isVisible ? 0 : '20px'});
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
 `;
 
 const SVGContainer = styled.div`
@@ -457,7 +460,7 @@ const SVGContainer = styled.div`
 `;
 
 // Add this new component for the mileage graph
-const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHistory }) => {
+const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[]; isVisible: boolean }> = ({ motHistory, isVisible }) => {
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   
@@ -632,12 +635,47 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHist
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          strokeDasharray={isVisible ? "none" : "1000"}
+          strokeDashoffset={isVisible ? "0" : "1000"}
+          style={{
+            transition: "stroke-dashoffset 1.5s ease-in-out",
+            animation: isVisible ? `drawLine 1.5s ease-in-out forwards` : "none"
+          }}
         />
+        
+        {/* Add the animation keyframes just before the data points */}
+        <defs>
+          <style>
+            {`
+              @keyframes drawLine {
+                from {
+                  stroke-dasharray: 1000;
+                  stroke-dashoffset: 1000;
+                }
+                to {
+                  stroke-dasharray: 1000;
+                  stroke-dashoffset: 0;
+                }
+              }
+              @keyframes fadeInPoint {
+                from {
+                  opacity: 0;
+                  transform: scale(0);
+                }
+                to {
+                  opacity: 1;
+                  transform: scale(1);
+                }
+              }
+            `}
+          </style>
+        </defs>
         
         {/* Data points */}
         {dataPoints.map((point, i) => {
           const x = xScale(point.year) + margin.left;
           const y = yScale(point.mileage) + margin.top;
+          const delay = i * 0.2 + 0.5; // Stagger the animations
           return (
             <g key={`point-${i}`}>
               <circle
@@ -647,6 +685,12 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHist
                 fill="white"
                 stroke={colors.primary.main}
                 strokeWidth="2"
+                style={{
+                  opacity: isVisible ? 1 : 0,
+                  transform: isVisible ? "scale(1)" : "scale(0)",
+                  transformOrigin: `${x}px ${y}px`,
+                  transition: `opacity 0.3s ease-in-out ${delay}s, transform 0.3s ease-in-out ${delay}s`
+                }}
               />
               <title>{`Year: ${point.year}, Mileage: ${point.mileage.toLocaleString()}`}</title>
             </g>
@@ -1753,9 +1797,7 @@ const ListingDetailPage = () => {
         <MileageGraphSection>
           <DetailSection>
             <SectionTitle>Mileage History</SectionTitle>
-            <MileageGraph>
-              <MileageLineGraph motHistory={motHistory} />
-            </MileageGraph>
+            <AnimatedMileageGraph motHistory={motHistory} />
           </DetailSection>
         </MileageGraphSection>
       )}
@@ -1928,6 +1970,51 @@ const ListingDetailPage = () => {
         </MOTHistorySection>
       )}
     </Container>
+  );
+};
+
+// Add a new component for the animated mileage graph
+const AnimatedMileageGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHistory }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const graphRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // When the element enters the viewport
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          // Once it's been observed, we can stop observing
+          if (graphRef.current) {
+            observer.unobserve(graphRef.current);
+          }
+        }
+      },
+      {
+        // Element is considered in view when 20% of it is visible
+        threshold: 0.2,
+        // Start observing when element is 100px from entering the viewport
+        rootMargin: '0px 0px -100px 0px'
+      }
+    );
+    
+    if (graphRef.current) {
+      observer.observe(graphRef.current);
+    }
+    
+    return () => {
+      if (graphRef.current) {
+        observer.unobserve(graphRef.current);
+      }
+    };
+  }, []);
+  
+  return (
+    <div ref={graphRef}>
+      <MileageGraph isVisible={isVisible}>
+        <MileageLineGraph motHistory={motHistory} isVisible={isVisible} />
+      </MileageGraph>
+    </div>
   );
 };
 
