@@ -631,6 +631,77 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHist
   );
 };
 
+// Add missing styled components for MOT details
+const MOTAdvisoriesTitle = styled.h4`
+  font-size: ${typography.fontSize.base};
+  font-weight: ${typography.fontWeight.semibold};
+  margin-bottom: ${spacing[2]};
+  color: ${colors.text.primary};
+`;
+
+const MOTAdvisoriesList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+`;
+
+const MOTFailureItem = styled.li`
+  padding: ${spacing[2]} 0;
+  position: relative;
+  padding-left: ${spacing[6]};
+  color: ${colors.text.secondary};
+  line-height: 1.5;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 16px;
+    height: 16px;
+    background-color: ${colors.state.error}30;
+    border-radius: 50%;
+  }
+  
+  &:after {
+    content: '✕';
+    position: absolute;
+    left: 5px;
+    top: 8px;
+    font-size: 10px;
+    color: ${colors.state.error};
+  }
+`;
+
+const MOTAdvisoryItem = styled.li`
+  padding: ${spacing[2]} 0;
+  position: relative;
+  padding-left: ${spacing[6]};
+  color: ${colors.text.secondary};
+  line-height: 1.5;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 16px;
+    height: 16px;
+    background-color: ${colors.state.warning}20;
+    border-radius: 50%;
+  }
+  
+  &:after {
+    content: '!';
+    position: absolute;
+    left: 7px;
+    top: 8px;
+    font-size: 10px;
+    color: ${colors.state.warning};
+    font-weight: bold;
+  }
+`;
+
 // Component
 const ListingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -967,10 +1038,12 @@ const ListingDetailPage = () => {
                       ? test.advisory_notes.length > 0 
                       : typeof test.advisory_notes === 'string' && test.advisory_notes.trim() !== ''
                   );
+                  
+                  // Fix the failure_reasons check
                   const hasFailures = test.failure_reasons && (
                     Array.isArray(test.failure_reasons) 
                       ? test.failure_reasons.length > 0 
-                      : typeof test.failure_reasons === 'string' && test.failure_reasons.toString().trim() !== ''
+                      : typeof test.failure_reasons === 'string' && String(test.failure_reasons).trim() !== ''
                   );
                   
                   return (

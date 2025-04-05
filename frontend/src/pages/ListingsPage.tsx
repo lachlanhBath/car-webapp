@@ -263,7 +263,19 @@ const ListingsPage: React.FC = () => {
         console.log('API Response:', response);
         
         if (response && Array.isArray(response.listings)) {
-          setListings(response.listings);
+          // Ensure each listing has a vehicle property
+          const processedListings = response.listings.map(listing => ({
+            ...listing,
+            vehicle: listing.vehicle || {
+              make: 'Unknown',
+              model: 'Unknown',
+              year: 'N/A',
+              fuel_type: 'Unknown',
+              transmission: 'Unknown'
+            }
+          }));
+          
+          setListings(processedListings);
           
           // Handle meta data if it exists
           if (response.meta) {
@@ -485,64 +497,82 @@ const ListingsPage: React.FC = () => {
       ) : listings.length > 0 ? (
         <>
           <ListingsGrid>
-            {listings.map(listing => (
-              <ListingCard key={listing.id}>
-                <ListingImageContainer>
-                  <ListingImage 
-                    src={listing.image_urls[0]} 
-                    alt={listing.title} 
-                  />
-                  <ListingPrice>
-                    {formatPrice(listing.price)}
-                  </ListingPrice>
-                </ListingImageContainer>
-                
-                <ListingContent>
-                  <ListingTitle>
-                    <Link to={`/listings/${listing.id}`}>
-                      {listing.title}
-                    </Link>
-                  </ListingTitle>
-                  
-                  <ListingLocation>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
-                    </svg>
-                    {listing.location}
-                  </ListingLocation>
-                  
-                  <ListingSpecs>
-                    <SpecItem>
-                      <SpecLabel>Make</SpecLabel>
-                      <SpecValue>{listing.vehicle.make}</SpecValue>
-                    </SpecItem>
-                    
-                    <SpecItem>
-                      <SpecLabel>Model</SpecLabel>
-                      <SpecValue>{listing.vehicle.model}</SpecValue>
-                    </SpecItem>
-                    
-                    <SpecItem>
-                      <SpecLabel>Year</SpecLabel>
-                      <SpecValue>{listing.vehicle.year}</SpecValue>
-                    </SpecItem>
-                    
-                    <SpecItem>
-                      <SpecLabel>Mileage</SpecLabel>
-                      <SpecValue>{listing.vehicle.mileage?.toLocaleString()} miles</SpecValue>
-                    </SpecItem>
-                  </ListingSpecs>
-                  
-                  <Button 
-                    as={Link} 
-                    to={`/listings/${listing.id}`}
-                    fullWidth
-                  >
-                    View Details
-                  </Button>
-                </ListingContent>
-              </ListingCard>
-            ))}
+            {listings.map(listing => {
+              // Ensure we have a valid listing object with required properties
+              if (!listing) {
+                return null; // Skip this listing if it's undefined
+              }
+              
+              // Make sure listing.vehicle exists, create a dummy one if not
+              const vehicle = listing.vehicle || {
+                make: 'Unknown',
+                model: 'Unknown',
+                year: 'N/A',
+                fuel_type: 'Unknown',
+                transmission: 'Unknown'
+              };
+              
+              return (
+                <ListingCard key={listing.id}>
+                  <ListingImageContainer>
+                    <ListingImage
+                      src={listing.image_urls?.[0] || '/placeholder-car.jpg'}
+                      alt={listing.title || 'Vehicle listing'}
+                    />
+                    <ListingPrice>
+                      {formatPrice(listing.price || 0)}
+                    </ListingPrice>
+                  </ListingImageContainer>
+
+                  <ListingContent>
+                    <ListingTitle>
+                      <Link to={`/listings/${listing.id}`}>
+                        {listing.title || 'Vehicle listing'}
+                      </Link>
+                    </ListingTitle>
+
+                    <ListingLocation>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
+                      </svg>
+                      {listing.location || 'Location unknown'}
+                    </ListingLocation>
+
+                    <ListingSpecs>
+                      <SpecItem>
+                        <SpecLabel>Make</SpecLabel>
+                        <SpecValue>{vehicle.make || 'Unknown'}</SpecValue>
+                      </SpecItem>
+
+                      <SpecItem>
+                        <SpecLabel>Model</SpecLabel>
+                        <SpecValue>{vehicle.model || 'Unknown'}</SpecValue>
+                      </SpecItem>
+
+                      <SpecItem>
+                        <SpecLabel>Year</SpecLabel>
+                        <SpecValue>{vehicle.year || 'Unknown'}</SpecValue>
+                      </SpecItem>
+
+                      <SpecItem>
+                        <SpecLabel>Mileage</SpecLabel>
+                        <SpecValue>
+                          {vehicle.mileage ? `${vehicle.mileage.toLocaleString()} miles` : 'Unknown'}
+                        </SpecValue>
+                      </SpecItem>
+                    </ListingSpecs>
+
+                    <Button
+                      as={Link}
+                      to={`/listings/${listing.id}`}
+                      fullWidth
+                    >
+                      View Details
+                    </Button>
+                  </ListingContent>
+                </ListingCard>
+              );
+            })}
           </ListingsGrid>
           
           <PaginationContainer>
