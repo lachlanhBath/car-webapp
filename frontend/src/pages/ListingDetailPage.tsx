@@ -64,6 +64,7 @@ interface CostEstimateResponse {
   parameters: {
     weekly_miles: number;
     driving_style: string;
+    driver_age: number;
   };
 }
 
@@ -736,9 +737,13 @@ const CostCalculator = styled.div`
 
 const CostForm = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: ${spacing[4]};
   margin-bottom: ${spacing[6]};
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
   
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -862,6 +867,102 @@ const ResultsLayout = styled.div`
   }
 `;
 
+// Add a styled component for the visualization toggle switch
+const VisualizationToggle = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-bottom: ${spacing[4]};
+`;
+
+const ToggleButton = styled.button<{ active: boolean }>`
+  background-color: ${props => props.active ? colors.primary.main : colors.light.border};
+  color: ${props => props.active ? colors.primary.contrast : colors.text.secondary};
+  border: none;
+  padding: ${spacing[2]} ${spacing[4]};
+  font-size: ${typography.fontSize.sm};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:first-child {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+  }
+  
+  &:last-child {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+  }
+`;
+
+// Add a styled component for the stacked area chart
+const CostAreaChart = styled.div`
+  padding: ${spacing[6]};
+  margin: ${spacing[4]} 0;
+  background-color: ${colors.light.surface};
+  border-radius: 10px;
+  box-shadow: ${shadows.md};
+  border: 1px solid ${colors.light.border};
+  height: 300px;
+`;
+
+// Add state for forecast period
+const SliderContainer = styled.div`
+  margin: ${spacing[4]} 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const SliderLabel = styled.div`
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: ${spacing[2]};
+  font-size: ${typography.fontSize.sm};
+  color: ${colors.text.secondary};
+`;
+
+const StyledSlider = styled.input`
+  width: 100%;
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: ${colors.light.border};
+  outline: none;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: ${colors.primary.main};
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: ${colors.primary.main};
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+`;
+
 // Component
 const ListingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -879,6 +980,401 @@ const ListingDetailPage = () => {
   const [costEstimate, setCostEstimate] = useState<CostEstimateResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
+  const [visualizationType, setVisualizationType] = useState<'bar' | 'area'>('bar');
+  const [driverAge, setDriverAge] = useState('30');
+  // Move the forecastPeriod state hook inside the component
+  const [forecastPeriod, setForecastPeriod] = useState(12);
+
+  // Update the monthly increase factors to a flat 5% per month for all categories
+  const MONTHLY_INCREASE = {
+    fuel: 1.05, // 5% increase per month for fuel
+    maintenance: 1.05, // 5% increase per month for maintenance
+    tax: 1.05, // 5% increase per month for tax
+    insurance: 1.05 // 5% increase per month for insurance
+  };
+
+  // Update the generateTimeSeriesData function to accept a custom period
+  const generateTimeSeriesData = (costEstimate: CostEstimateResponse, months: number = 12) => {
+    const timeSeriesData = [];
+    // Start with the initial monthly costs
+    let currentCosts = {
+      fuel: costEstimate.estimated_monthly_cost.fuel,
+      maintenance: costEstimate.estimated_monthly_cost.maintenance,
+      tax: costEstimate.estimated_monthly_cost.tax,
+      insurance: costEstimate.estimated_monthly_cost.insurance
+    };
+    
+    // Track cumulative costs
+    let cumulativeCosts = {
+      fuel: 0,
+      maintenance: 0,
+      tax: 0,
+      insurance: 0,
+      total: 0
+    };
+
+    // Generate data for the specified number of months
+    for (let month = 0; month < months; month++) {
+      // For first month, use original values, otherwise apply compounding increases
+      if (month > 0) {
+        // Apply monthly increases with compounding effect
+        currentCosts = {
+          fuel: currentCosts.fuel * MONTHLY_INCREASE.fuel,
+          maintenance: currentCosts.maintenance * MONTHLY_INCREASE.maintenance,
+          tax: currentCosts.tax * MONTHLY_INCREASE.tax,
+          insurance: currentCosts.insurance * MONTHLY_INCREASE.insurance
+        };
+      }
+
+      // Calculate monthly total
+      const monthlyTotal = 
+        currentCosts.fuel + 
+        currentCosts.maintenance + 
+        currentCosts.tax + 
+        currentCosts.insurance;
+      
+      // Add current month costs to cumulative totals
+      cumulativeCosts.fuel += currentCosts.fuel;
+      cumulativeCosts.maintenance += currentCosts.maintenance;
+      cumulativeCosts.tax += currentCosts.tax;
+      cumulativeCosts.insurance += currentCosts.insurance;
+      cumulativeCosts.total += monthlyTotal;
+
+      // Round all cumulative values to 2 decimal places
+      const roundedCumulative = {
+        fuel: Math.round(cumulativeCosts.fuel * 100) / 100,
+        maintenance: Math.round(cumulativeCosts.maintenance * 100) / 100,
+        tax: Math.round(cumulativeCosts.tax * 100) / 100,
+        insurance: Math.round(cumulativeCosts.insurance * 100) / 100,
+        total: Math.round(cumulativeCosts.total * 100) / 100
+      };
+
+      timeSeriesData.push({
+        month: month + 1,
+        fuel: roundedCumulative.fuel,
+        maintenance: roundedCumulative.maintenance,
+        tax: roundedCumulative.tax,
+        insurance: roundedCumulative.insurance,
+        total: roundedCumulative.total,
+        // Keep the monthly (non-cumulative) values for reference
+        monthly: {
+          fuel: Math.round(currentCosts.fuel * 100) / 100,
+          maintenance: Math.round(currentCosts.maintenance * 100) / 100,
+          tax: Math.round(currentCosts.tax * 100) / 100,
+          insurance: Math.round(currentCosts.insurance * 100) / 100,
+          total: Math.round(monthlyTotal * 100) / 100
+        }
+      });
+    }
+
+    return timeSeriesData;
+  };
+
+  // Update the StackedAreaChart component to handle dynamic month ranges
+  interface StackedAreaChartProps {
+    data: any[];
+  }
+
+  const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ data }) => {
+    const svgRef = React.useRef<SVGSVGElement | null>(null);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    
+    useEffect(() => {
+      if (svgRef.current) {
+        const { width, height } = svgRef.current.getBoundingClientRect();
+        setDimensions({ width, height });
+      }
+    }, []);
+    
+    // Define margin for the graph
+    const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+    const width = dimensions.width - margin.left - margin.right;
+    const height = dimensions.height - margin.top - margin.bottom;
+    
+    // Skip rendering if dimensions are not available yet
+    if (width <= 0 || height <= 0) {
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg ref={svgRef} width="100%" height="100%" />
+        </div>
+      );
+    }
+    
+    // Define scales
+    const xScale = (x: number) => (x - 1) * (width / 11); // 12 months (0-11)
+    const yMax = Math.max(...data.map(d => d.total)) * 1.1; // Add 10% margin
+    const yScale = (y: number) => height - (y / yMax) * height;
+    
+    // Calculate the optimal x-axis tick interval based on the number of months
+    const getXTickInterval = (monthCount: number) => {
+      if (monthCount <= 12) return 1; // Every month for up to 1 year
+      if (monthCount <= 24) return 2; // Every 2 months for up to 2 years
+      if (monthCount <= 36) return 3; // Every 3 months for up to 3 years
+      if (monthCount <= 48) return 4; // Every 4 months for up to 4 years
+      return 6; // Every 6 months for longer periods
+    };
+    
+    const monthCount = data.length;
+    const xTickInterval = getXTickInterval(monthCount);
+    
+    // X-axis ticks (months) with dynamic intervals
+    const xTicks = [];
+    for (let month = 1; month <= monthCount; month++) {
+      if (month === 1 || month === monthCount || month % xTickInterval === 0) {
+        const x = xScale(month) + margin.left;
+        xTicks.push(
+          <g key={`x-tick-${month}`} transform={`translate(${x}, ${height + margin.top})`}>
+            <line y2="6" stroke={colors.text.secondary} />
+            <text
+              y="22"
+              textAnchor="middle"
+              fontSize="12"
+              fill={colors.text.secondary}
+            >
+              {month <= 12 ? `Month ${month}` : formatMonthLabel(month)}
+            </text>
+          </g>
+        );
+      }
+    }
+    
+    // Helper function to format month labels for longer periods
+    function formatMonthLabel(month: number) {
+      const years = Math.floor((month - 1) / 12);
+      const months = ((month - 1) % 12) + 1;
+      
+      if (months === 1) {
+        return `${years} ${years === 1 ? 'Year' : 'Years'}`;
+      } else {
+        return `${years}y ${months}m`;
+      }
+    }
+    
+    // Generate paths for the stacked areas
+    const categories = [
+      { key: 'insurance', color: '#B6A4FE', label: 'Insurance' },
+      { key: 'tax', color: '#6CB2EB', label: 'Road Tax' },
+      { key: 'maintenance', color: colors.secondary.main, label: 'Maintenance' },
+      { key: 'fuel', color: colors.primary.light, label: 'Fuel' }
+    ];
+    
+    // Create stacked data
+    const stackedData = data.map(d => {
+      let sum = 0;
+      const stacked: any = { month: d.month };
+      
+      // Calculate stacked values from bottom to top
+      categories.forEach(cat => {
+        const start = sum;
+        sum += d[cat.key];
+        stacked[`${cat.key}Start`] = start;
+        stacked[`${cat.key}End`] = sum;
+      });
+      
+      return stacked;
+    });
+    
+    // Generate area paths
+    const areaPaths = categories.map(cat => {
+      const key = cat.key;
+      const points: [number, number][] = [];
+      
+      // Add points from left to right
+      stackedData.forEach(d => {
+        points.push([xScale(d.month) + margin.left, yScale(d[`${key}End`]) + margin.top]);
+      });
+      
+      // Add points from right to left (bottom part of the area)
+      for (let i = stackedData.length - 1; i >= 0; i--) {
+        points.push([
+          xScale(stackedData[i].month) + margin.left, 
+          yScale(stackedData[i][`${key}Start`]) + margin.top
+        ]);
+      }
+      
+      // Generate SVG path
+      const pathData = points.map((point, i) => {
+        return `${i === 0 ? 'M' : 'L'} ${point[0]},${point[1]}`;
+      }).join(' ') + ' Z'; // Close the path
+      
+      return { path: pathData, color: cat.color, key: cat.key, label: cat.label };
+    });
+    
+    // Y-axis ticks (cost)
+    const yTickCount = 5;
+    const yTicks = [];
+    for (let i = 0; i <= yTickCount; i++) {
+      const value = (i / yTickCount) * yMax;
+      const y = yScale(value) + margin.top;
+      yTicks.push(
+        <g key={`y-tick-${i}`} transform={`translate(${margin.left}, ${y})`}>
+          <line x2="-6" stroke={colors.text.secondary} />
+          <text
+            x="-10"
+            dy="0.32em"
+            textAnchor="end"
+            fontSize="12"
+            fill={colors.text.secondary}
+          >
+            £{Math.round(value).toLocaleString()}
+          </text>
+          <line
+            x2={width}
+            stroke={colors.light.border}
+            strokeWidth="1"
+            strokeDasharray="4,4"
+          />
+        </g>
+      );
+    }
+    
+    // First, add the monthly total line to show acceleration
+    const monthlyTotalsPoints: [number, number][] = data.map((point, i) => {
+      return [
+        xScale(point.month) + margin.left, 
+        yScale(point.monthly.total) + margin.top
+      ];
+    });
+
+    // Generate the monthly totals line path
+    const monthlyTotalsPath = monthlyTotalsPoints
+      .map((point, i) => `${i === 0 ? 'M' : 'L'} ${point[0]},${point[1]}`)
+      .join(' ');
+
+    // Add previous vs current month indicators to show acceleration
+    // Add this in the render part of the StackedAreaChart SVG
+    // Add this after the stacked area paths
+    {/* Add monthly cost line to show acceleration trend */}
+    <path
+      d={monthlyTotalsPath}
+      fill="none"
+      stroke="#FF5252"
+      strokeWidth="2"
+      strokeDasharray="3,3"
+      strokeLinecap="round"
+    />
+
+    // Add month-over-month cost indicators
+    {data.slice(1).map((point, i) => {
+      const currentMonth = point.month;
+      const prevMonth = currentMonth - 1;
+      const currentCost = point.monthly.total;
+      const prevCost = data[i].monthly.total;
+      const increase = ((currentCost - prevCost) / prevCost * 100).toFixed(1);
+      
+      // Only show every other month for clarity
+      if (currentMonth % 3 !== 0) return null;
+      
+      return (
+        <g key={`increase-${currentMonth}`}>
+          <line
+            x1={xScale(prevMonth) + margin.left}
+            y1={yScale(prevCost) + margin.top}
+            x2={xScale(currentMonth) + margin.left}
+            y2={yScale(currentCost) + margin.top}
+            stroke="#FF5252"
+            strokeWidth="2"
+          />
+          <text
+            x={xScale(currentMonth - 0.5) + margin.left}
+            y={yScale((prevCost + currentCost) / 2) + margin.top - 8}
+            fontSize="10"
+            fill="#FF5252"
+            textAnchor="middle"
+          >
+            +{increase}%
+          </text>
+        </g>
+      );
+    })}
+
+    // Update the legend to include the monthly cost increase line
+    // Modify the legend section
+    const legend = (
+      <g transform={`translate(${margin.left + 20}, ${margin.top})`}>
+        <text x="0" y="-10" fontSize="12" fontWeight="500" fill={colors.text.secondary}>
+          Cumulative Costs
+        </text>
+        {categories.map((cat, i) => (
+          <g key={cat.key} transform={`translate(0, ${i * 20 + 10})`}>
+            <rect width="15" height="15" fill={cat.color} />
+            <text x="20" y="12" fontSize="12" fill={colors.text.secondary}>{cat.label}</text>
+          </g>
+        ))}
+        <g transform={`translate(0, ${categories.length * 20 + 20})`}>
+          <line x1="0" x2="15" y1="7" y2="7" stroke="#FF5252" strokeWidth="2" strokeDasharray="3,3" />
+          <text x="20" y="12" fontSize="12" fill="#FF5252">Monthly Cost Trend</text>
+        </g>
+      </g>
+    );
+    
+    return (
+      <div style={{ width: '100%', height: '100%' }}>
+        <svg ref={svgRef} width="100%" height="100%">
+          {/* X-axis */}
+          <line
+            x1={margin.left}
+            y1={height + margin.top}
+            x2={width + margin.left}
+            y2={height + margin.top}
+            stroke={colors.text.secondary}
+          />
+          
+          {/* Y-axis */}
+          <line
+            x1={margin.left}
+            y1={margin.top}
+            x2={margin.left}
+            y2={height + margin.top}
+            stroke={colors.text.secondary}
+          />
+          
+          {/* X and Y axis ticks */}
+          {xTicks}
+          {yTicks}
+          
+          {/* Axis labels */}
+          <text
+            x={width / 2 + margin.left}
+            y={height + margin.top + 40}
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="500"
+            fill={colors.text.secondary}
+          >
+            Month
+          </text>
+          
+          <text
+            x={-height / 2 - margin.top}
+            y="15"
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="500"
+            fill={colors.text.secondary}
+            transform="rotate(-90)"
+          >
+            Cumulative Cost (£)
+          </text>
+          
+          {/* Stacked area paths */}
+          {areaPaths.map(area => (
+            <path
+              key={area.key}
+              d={area.path}
+              fill={area.color}
+              opacity={0.8}
+              stroke={area.color}
+              strokeWidth="1"
+            />
+          ))}
+          
+          {/* Legend */}
+          {legend}
+        </svg>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (id) {
@@ -953,9 +1449,10 @@ const ListingDetailPage = () => {
             setMotHistory([]);
           }
         })
-        .catch((err: Error) => {
-          console.error('Error fetching MOT history:', err);
-          setMotError('Could not retrieve MOT history');
+        .catch((error: Error) => {
+          console.error('Error looking up vehicle by registration:', error);
+          setCalculationError(`Error: Could not find vehicle information for registration ${registration}`);
+          setIsCalculating(false);
         })
         .finally(() => {
           setMotLoading(false);
@@ -971,7 +1468,7 @@ const ListingDetailPage = () => {
   };
 
   const calculateMonthlyCosts = () => {
-    console.log('Calculate button clicked with input values:', { weeklyMiles, drivingStyle });
+    console.log('Calculate button clicked with input values:', { weeklyMiles, drivingStyle, driverAge });
     
     if (!weeklyMiles) {
       console.log('Weekly miles missing, not calculating');
@@ -979,118 +1476,111 @@ const ListingDetailPage = () => {
       return;
     }
     
-    // For testing, uncomment this to use mock data directly
-    // useMockDataDirectly(weeklyMiles, drivingStyle);
-    // return;
+    if (!driverAge) {
+      console.log('Driver age missing, not calculating');
+      setCalculationError('Please enter driver age');
+      return;
+    }
+    
+    const ageValue = parseInt(driverAge, 10);
+    if (isNaN(ageValue) || ageValue < 17 || ageValue > 100) {
+      console.log('Invalid driver age:', driverAge);
+      setCalculationError('Please enter a valid driver age between 17 and 100');
+      return;
+    }
     
     console.log('Starting API calculation');
     setIsCalculating(true);
     setCalculationError(null);
     
-    if (!listing?.vehicle?.id) {
-      console.error('No vehicle ID available');
-      setCalculationError('Vehicle data not available');
-      setIsCalculating(false);
-      // Fallback to mock data for development/testing
-      console.log('Falling back to mock data due to missing vehicle ID');
-      useMockDataDirectly(weeklyMiles, drivingStyle);
+    // Check if we have a vehicle ID
+    const vehicleId = listing?.vehicle?.id;
+    const registration = listing?.vehicle?.registration;
+    
+    console.log('Vehicle data available:', { 
+      id: vehicleId, 
+      registration: registration,
+      make: listing?.vehicle?.make,
+      model: listing?.vehicle?.model
+    });
+    
+    // If no vehicle ID but we have registration, lookup by registration first
+    if (!vehicleId && registration) {
+      console.log('No vehicle ID available, but registration found:', registration);
+      console.log('Looking up vehicle by registration');
+      
+      // Lookup vehicle by registration
+      vehicles.lookupVehicleByRegistration(registration)
+        .then((vehicleData: any) => {
+          console.log('Vehicle lookup response:', vehicleData);
+          
+          if (vehicleData && vehicleData.vehicle && vehicleData.vehicle.id) {
+            // We have a vehicle ID from the lookup, now call the cost estimate endpoint
+            const lookupVehicleId = vehicleData.vehicle.id;
+            console.log('Found vehicle ID from registration lookup:', lookupVehicleId);
+            
+            fetchCostEstimate(lookupVehicleId);
+          } else {
+            throw new Error('Vehicle ID not found from registration lookup');
+          }
+        })
+        .catch(error => {
+          console.error('Error looking up vehicle by registration:', error);
+          setCalculationError(`Error: Could not find vehicle information for registration ${registration}`);
+          setIsCalculating(false);
+        });
       return;
     }
     
-    const url = `/api/v1/vehicles/${listing.vehicle.id}/operating_cost_estimate`;
-    console.log('Fetching from URL:', url);
+    // If we have a vehicle ID, use it directly
+    if (vehicleId) {
+      console.log('Vehicle ID available, using it directly:', vehicleId);
+      fetchCostEstimate(vehicleId);
+      return;
+    }
     
-    fetch(url, {
+    // If no ID or registration is available, show an error
+    console.error('No vehicle ID or registration available');
+    setCalculationError('Cannot calculate costs: No vehicle information available');
+    setIsCalculating(false);
+  };
+
+  const fetchCostEstimate = (vehicleId: string | number) => {
+    // Use the correct endpoint that matches our Rails route
+    const endpoint = `/api/v1/vehicles/${vehicleId}/operating_cost_estimate`;
+    
+    console.log(`Fetching cost estimate from: ${endpoint}`);
+    
+    fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         weekly_miles: parseFloat(weeklyMiles),
-        driving_style: drivingStyle
+        driving_style: drivingStyle,
+        driver_age: parseInt(driverAge, 10)
       })
     })
     .then(response => {
-      console.log('Got API response, status:', response.status);
+      console.log(`API response status: ${response.status}`);
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       return response.json();
     })
     .then(data => {
-      console.log('Successfully parsed API response:', data);
+      console.log('Successfully received cost estimate:', data);
       setCostEstimate(data);
     })
     .catch(error => {
-      console.error('Error fetching cost estimate:', error);
-      setCalculationError(`Error: ${error.message}`);
-      
-      // Fallback to mock data for development/testing if API fails
-      console.log('Falling back to mock data due to API error');
-      useMockDataDirectly(weeklyMiles, drivingStyle);
+      console.error('Error calculating costs:', error);
+      setCalculationError(`Error calculating monthly costs: ${error.message}`);
     })
     .finally(() => {
-      console.log('Calculation complete');
+      console.log('Calculation attempt complete');
       setIsCalculating(false);
     });
-  };
-
-  // Change useMockDataDirectly function to correctly match the CostEstimateResponse type
-  const useMockDataDirectly = (weekly: string, style: string) => {
-    console.log('Using mock data directly for demonstration', { weekly, style });
-    
-    // Get vehicle ID safely
-    let vehicleId = 123;
-    if (listing?.vehicle?.id) {
-      try {
-        vehicleId = typeof listing.vehicle.id === 'string' 
-          ? parseInt(listing.vehicle.id, 10) 
-          : listing.vehicle.id;
-      } catch (e) {
-        console.error('Error parsing vehicle ID:', e);
-      }
-    }
-    
-    // Create mock data based on the inputs
-    const weeklyMilesNum = parseFloat(weekly) || 200;
-    const mockData: CostEstimateResponse = {
-      vehicle_id: vehicleId,
-      make: listing?.vehicle?.make || 'Example',
-      model: listing?.vehicle?.model || 'Car',
-      estimated_monthly_cost: {
-        total: 325.75,
-        fuel: 165.50,
-        maintenance: 45.25,
-        tax: 15.00,
-        insurance: 100.00
-      },
-      parameters: {
-        weekly_miles: weeklyMilesNum,
-        driving_style: style
-      }
-    };
-    
-    console.log('Created mock data:', mockData);
-    
-    // Adjust values based on driving style
-    const styleMultiplier = style === 'eco' ? 0.85 : (style === 'aggressive' ? 1.2 : 1.0);
-    
-    // Adjust values based on weekly miles (scale linearly)
-    const mileageMultiplier = weeklyMilesNum / 200;
-    
-    // Apply adjustments to mock data
-    mockData.estimated_monthly_cost.fuel = Math.round(mockData.estimated_monthly_cost.fuel * styleMultiplier * mileageMultiplier * 100) / 100;
-    mockData.estimated_monthly_cost.maintenance = Math.round(mockData.estimated_monthly_cost.maintenance * mileageMultiplier * 100) / 100;
-    mockData.estimated_monthly_cost.total = Math.round((
-      mockData.estimated_monthly_cost.fuel + 
-      mockData.estimated_monthly_cost.maintenance + 
-      mockData.estimated_monthly_cost.tax + 
-      mockData.estimated_monthly_cost.insurance
-    ) * 100) / 100;
-    
-    console.log('Setting cost estimate state with mock data');
-    setCostEstimate(mockData);
-    setIsCalculating(false);
   };
 
   if (loading) {
@@ -1287,6 +1777,17 @@ const ListingDetailPage = () => {
                   />
                 </div>
                 <div>
+                  <Input
+                    label="Driver age"
+                    type="number"
+                    value={driverAge}
+                    onChange={(e) => setDriverAge(e.target.value)}
+                    placeholder="e.g. 30"
+                    min="17"
+                    max="100"
+                  />
+                </div>
+                <div>
                   <label style={{ display: 'block', marginBottom: spacing[2] }}>
                     Driving style
                   </label>
@@ -1325,29 +1826,12 @@ const ListingDetailPage = () => {
                 </div>
               </CostForm>
               
-              <button
-                onClick={() => useMockDataDirectly(weeklyMiles, drivingStyle)}
-                style={{
-                  backgroundColor: '#666',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: `${spacing[2]} ${spacing[4]}`,
-                  margin: `${spacing[4]} 0`,
-                  cursor: 'pointer',
-                  fontSize: typography.fontSize.sm,
-                  width: '100%'
-                }}
-              >
-                DEMO: Show Example Data
-              </button>
-              
               <button 
                 onClick={() => {
                   console.log('Calculate button clicked');
                   calculateMonthlyCosts();
                 }} 
-                disabled={!weeklyMiles || isCalculating}
+                disabled={!weeklyMiles || !driverAge || isCalculating}
                 style={{
                   backgroundColor: colors.primary.main,
                   color: colors.primary.contrast,
@@ -1355,8 +1839,8 @@ const ListingDetailPage = () => {
                   borderRadius: '8px',
                   padding: `${spacing[3]} ${spacing[6]}`,
                   fontWeight: typography.fontWeight.medium,
-                  cursor: !weeklyMiles || isCalculating ? 'not-allowed' : 'pointer',
-                  opacity: !weeklyMiles || isCalculating ? 0.7 : 1,
+                  cursor: !weeklyMiles || !driverAge || isCalculating ? 'not-allowed' : 'pointer',
+                  opacity: !weeklyMiles || !driverAge || isCalculating ? 0.7 : 1,
                   width: '100%',
                   fontSize: typography.fontSize.base,
                   transition: 'background-color 0.2s ease'
@@ -1374,38 +1858,51 @@ const ListingDetailPage = () => {
               <CostResults 
                 visible={!!costEstimate}
                 style={{ 
-                  border: '2px solid #4a90e2', 
+                  border: 'none',
                   borderRadius: '12px', 
                   padding: spacing[6], 
-                  boxShadow: shadows.lg
+                  boxShadow: shadows.lg,
+                  background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #FF9900, #FF5E62, #FF2A5F, #FF00CC, #BA00FF, #7100FF, #4400FF, #2D18FF) border-box',
+                  backgroundOrigin: 'border-box',
+                  backgroundClip: 'padding-box, border-box',
+                  borderWidth: '3px',
+                  borderStyle: 'solid',
+                  borderColor: 'transparent',
+                  position: 'relative'
                 }}
               >
                 {costEstimate && (
                   <>
                     <TotalCost>
                       £{costEstimate.estimated_monthly_cost.total} per month
+                      {forecastPeriod > 12 && (
+                        <div style={{ 
+                          fontSize: typography.fontSize.lg, 
+                          color: colors.text.secondary, 
+                          marginTop: spacing[2],
+                          fontWeight: typography.fontWeight.normal 
+                        }}>
+                          Total over {forecastPeriod} months: £{Math.round(generateTimeSeriesData(costEstimate, forecastPeriod)[forecastPeriod-1].total)}
+                        </div>
+                      )}
                     </TotalCost>
                     
-                    <ResultsLayout>
-                      <CostBreakdown>
-                        <CostItem>
-                          <CostValue>£{costEstimate.estimated_monthly_cost.fuel}</CostValue>
-                          <CostLabel>Fuel</CostLabel>
-                        </CostItem>
-                        <CostItem>
-                          <CostValue>£{costEstimate.estimated_monthly_cost.maintenance}</CostValue>
-                          <CostLabel>Maintenance</CostLabel>
-                        </CostItem>
-                        <CostItem>
-                          <CostValue>£{costEstimate.estimated_monthly_cost.tax}</CostValue>
-                          <CostLabel>Road Tax</CostLabel>
-                        </CostItem>
-                        <CostItem>
-                          <CostValue>£{costEstimate.estimated_monthly_cost.insurance}</CostValue>
-                          <CostLabel>Insurance</CostLabel>
-                        </CostItem>
-                      </CostBreakdown>
-                      
+                    <VisualizationToggle>
+                      <ToggleButton 
+                        active={visualizationType === 'bar'} 
+                        onClick={() => setVisualizationType('bar')}
+                      >
+                        Bar Chart
+                      </ToggleButton>
+                      <ToggleButton 
+                        active={visualizationType === 'area'} 
+                        onClick={() => setVisualizationType('area')}
+                      >
+                        Cost Over Time
+                      </ToggleButton>
+                    </VisualizationToggle>
+                    
+                    {visualizationType === 'bar' ? (
                       <CostBarChart style={{ 
                         padding: spacing[6],
                         margin: `${spacing[4]} 0`,
@@ -1464,11 +1961,30 @@ const ListingDetailPage = () => {
                           />
                         </CostBar>
                       </CostBarChart>
-                    </ResultsLayout>
-                    
-                    <div style={{ textAlign: 'center', marginTop: spacing[6], fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
-                      Based on {costEstimate.parameters.weekly_miles} miles per week with {costEstimate.parameters.driving_style} driving style.
-                    </div>
+                    ) : (
+                      <CostAreaChart>
+                        <h4 style={{ marginBottom: spacing[3], textAlign: 'center' }}>
+                          Cumulative Cost Over {forecastPeriod} Months (with 5% Monthly Increase)
+                        </h4>
+                        
+                        <SliderContainer>
+                          <SliderLabel>
+                            <span>Forecast Period</span>
+                            <span>{forecastPeriod} months {forecastPeriod >= 12 ? `(${(forecastPeriod / 12).toFixed(1)} years)` : ''}</span>
+                          </SliderLabel>
+                          <StyledSlider
+                            type="range"
+                            min="6"
+                            max="60"
+                            step="1"
+                            value={forecastPeriod}
+                            onChange={(e) => setForecastPeriod(parseInt(e.target.value, 10))}
+                          />
+                        </SliderContainer>
+                        
+                        <StackedAreaChart data={generateTimeSeriesData(costEstimate, forecastPeriod)} />
+                      </CostAreaChart>
+                    )}
                   </>
                 )}
               </CostResults>
