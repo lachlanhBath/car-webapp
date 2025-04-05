@@ -24,13 +24,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_04_05_194543) do
     t.datetime "post_date"
     t.string "source_id"
     t.string "status", default: "active"
+    t.jsonb "raw_data", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.jsonb "raw_data", default: {}, null: false
     t.index ["image_urls"], name: "index_listings_on_image_urls", using: :gin
     t.index ["post_date"], name: "index_listings_on_post_date"
     t.index ["price"], name: "index_listings_on_price"
-    t.index ["raw_data"], name: "index_listings_on_raw_data", using: :gin
     t.index ["source_id"], name: "index_listings_on_source_id"
   end
 
