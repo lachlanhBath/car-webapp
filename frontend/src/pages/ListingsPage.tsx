@@ -529,24 +529,52 @@ const ListingsPage: React.FC = () => {
       per_page: pagination.perPage
     };
     
-    // Add filters if they have values - map form field names to API parameter names
-    if (filters.make) params.make = filters.make;
-    if (filters.model) params.model = filters.model;
-    if (filters.minPrice) params.min_price = Number(filters.minPrice);
-    if (filters.maxPrice) params.max_price = Number(filters.maxPrice);
-    if (filters.yearFrom) params.year_from = Number(filters.yearFrom);
-    if (filters.yearTo) params.year_to = Number(filters.yearTo);
-    if (filters.fuelType) params.fuel_type = filters.fuelType;
-    if (filters.transmission) params.transmission = filters.transmission;
+    // Helper function to parse numeric values safely
+    const parseNumericParam = (value: string): number | undefined => {
+      if (!value || value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return isNaN(parsed) ? undefined : parsed;
+    };
     
-    console.log('Fetching listings with params:', params);
+    // Add filters if they have values - map form field names to API parameter names
+    if (filters.make && filters.make.trim() !== '') {
+      params.make = filters.make.trim();
+    }
+    
+    if (filters.model && filters.model.trim() !== '') {
+      params.model = filters.model.trim();
+    }
+    
+    const minPrice = parseNumericParam(filters.minPrice);
+    if (minPrice !== undefined) {
+      params.min_price = minPrice;
+    }
+    
+    const maxPrice = parseNumericParam(filters.maxPrice);
+    if (maxPrice !== undefined) {
+      params.max_price = maxPrice;
+    }
+    
+    const yearFrom = parseNumericParam(filters.yearFrom);
+    if (yearFrom !== undefined) {
+      params.year_from = yearFrom;
+    }
+    
+    const yearTo = parseNumericParam(filters.yearTo);
+    if (yearTo !== undefined) {
+      params.year_to = yearTo;
+    }
+    
+    if (filters.fuelType && filters.fuelType !== '') {
+      params.fuel_type = filters.fuelType;
+    }
+    
+    if (filters.transmission && filters.transmission !== '') {
+      params.transmission = filters.transmission;
+    }
     
     listingsApi.getListings(params)
       .then((response) => {
-        // The API returns the listings directly in the response object
-        // The interceptor in client.ts already extracts response.data for us
-        console.log('API Response:', response);
-        
         if (response && Array.isArray(response.listings)) {
           // Ensure each listing has a vehicle property
           const processedListings = response.listings.map((listing: any) => ({
@@ -599,8 +627,11 @@ const ListingsPage: React.FC = () => {
   };
 
   const handleResetFilters = () => {
+    // Show loading state
     setFilterLoading(true);
-    setFilters({
+    
+    // Reset all filter states to empty values
+    const emptyFilters = {
       make: '',
       model: '',
       minPrice: '',
@@ -609,12 +640,56 @@ const ListingsPage: React.FC = () => {
       yearTo: '',
       fuelType: '',
       transmission: ''
-    });
+    };
     
-    // Reset to first page and fetch listings with empty filters
+    setFilters(emptyFilters);
+    
+    // Reset to first page
     setPagination(prev => ({ ...prev, currentPage: 1 }));
-    // Use setTimeout to ensure state updates before fetching
-    setTimeout(fetchListings, 0);
+    
+    // Explicitly make an API request with empty params
+    const params = {
+      page: 1,
+      per_page: pagination.perPage
+    };
+    
+    // Use direct API call instead of fetchListings to ensure we use empty filters
+    listingsApi.getListings(params)
+      .then((response) => {
+        if (response && Array.isArray(response.listings)) {
+          const processedListings = response.listings.map((listing: any) => ({
+            ...listing,
+            vehicle: listing.vehicle || {
+              make: 'Unknown',
+              model: 'Unknown',
+              year: 'N/A',
+              fuel_type: 'Unknown',
+              transmission: 'Unknown'
+            }
+          }));
+          
+          setListings(processedListings);
+          
+          if (response.meta) {
+            setPagination({
+              currentPage: response.meta.current_page || 1,
+              totalPages: response.meta.total_pages || 1,
+              totalCount: response.meta.total_count || 0,
+              perPage: pagination.perPage
+            });
+          }
+        } else {
+          console.error('Unexpected API response format during reset:', response);
+          setListings([]);
+        }
+      })
+      .catch((error) => {
+        console.error('Error resetting filters:', error);
+      })
+      .finally(() => {
+        setLoading(false);
+        setFilterLoading(false);
+      });
   };
 
   const handlePageChange = (page: number) => {

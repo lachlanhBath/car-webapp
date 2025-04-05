@@ -4,58 +4,60 @@ module Api
       def index
         @listings = Listing.active.recent.includes(:vehicle)
         
-        # Apply filters if provided
+        # First, check if any vehicle-related filters are present
+        if vehicle_filters_present?
+          # Include vehicle join for all queries if any vehicle filter is present
+          @listings = @listings.joins(:vehicle)
+        end
+        
+        # Now apply all filters
+        
+        # Title/keyword filters
         if params[:keyword].present?
           @listings = @listings.where('title ILIKE ?', "%#{params[:keyword]}%")
         end
         
+        # Price filters - with explicit table name to avoid ambiguity
         if params[:min_price].present? && params[:max_price].present?
-          @listings = @listings.price_range(params[:min_price], params[:max_price])
+          @listings = @listings.where('listings.price BETWEEN ? AND ?', params[:min_price].to_f, params[:max_price].to_f)
         elsif params[:min_price].present?
-          @listings = @listings.where('price >= ?', params[:min_price].to_f)
+          @listings = @listings.where('listings.price >= ?', params[:min_price].to_f)
         elsif params[:max_price].present?
-          @listings = @listings.where('price <= ?', params[:max_price].to_f)
+          @listings = @listings.where('listings.price <= ?', params[:max_price].to_f)
         end
         
+        # Location filters
         if params[:location].present?
-          @listings = @listings.where('location ILIKE ?', "%#{params[:location]}%")
+          @listings = @listings.where('listings.location ILIKE ?', "%#{params[:location]}%")
         end
         
-        # Add vehicle-related filters
-        if params[:make].present? || params[:model].present? || 
-           params[:year_from].present? || params[:year_to].present? ||
-           params[:fuel_type].present? || params[:transmission].present?
-          
-          @listings = @listings.joins(:vehicle)
-          
-          # Filter by make
-          if params[:make].present?
-            @listings = @listings.where('vehicles.make ILIKE ?', "%#{params[:make]}%")
-          end
-          
-          # Filter by model
-          if params[:model].present?
-            @listings = @listings.where('vehicles.model ILIKE ?', "%#{params[:model]}%")
-          end
-          
-          # Filter by year range
-          if params[:year_from].present? && params[:year_to].present?
-            @listings = @listings.where('vehicles.year BETWEEN ? AND ?', params[:year_from].to_i, params[:year_to].to_i)
-          elsif params[:year_from].present?
-            @listings = @listings.where('vehicles.year >= ?', params[:year_from].to_i)
-          elsif params[:year_to].present?
-            @listings = @listings.where('vehicles.year <= ?', params[:year_to].to_i)
-          end
-          
-          # Filter by fuel type
-          if params[:fuel_type].present?
-            @listings = @listings.where('vehicles.fuel_type ILIKE ?', "%#{params[:fuel_type]}%")
-          end
-          
-          # Filter by transmission
-          if params[:transmission].present?
-            @listings = @listings.where('vehicles.transmission ILIKE ?', "%#{params[:transmission]}%")
-          end
+        # Vehicle make filter
+        if params[:make].present?
+          @listings = @listings.where('vehicles.make ILIKE ?', "%#{params[:make]}%")
+        end
+        
+        # Vehicle model filter
+        if params[:model].present?
+          @listings = @listings.where('vehicles.model ILIKE ?', "%#{params[:model]}%")
+        end
+        
+        # Vehicle year filters
+        if params[:year_from].present? && params[:year_to].present?
+          @listings = @listings.where('vehicles.year BETWEEN ? AND ?', params[:year_from].to_i, params[:year_to].to_i)
+        elsif params[:year_from].present?
+          @listings = @listings.where('vehicles.year >= ?', params[:year_from].to_i)
+        elsif params[:year_to].present?
+          @listings = @listings.where('vehicles.year <= ?', params[:year_to].to_i)
+        end
+        
+        # Vehicle fuel type filter
+        if params[:fuel_type].present?
+          @listings = @listings.where('vehicles.fuel_type ILIKE ?', "%#{params[:fuel_type]}%")
+        end
+        
+        # Vehicle transmission filter
+        if params[:transmission].present?
+          @listings = @listings.where('vehicles.transmission ILIKE ?', "%#{params[:transmission]}%")
         end
         
         # Save search if parameters exist
@@ -64,10 +66,13 @@ module Api
         # Pagination
         @listings = @listings.page(params[:page] || 1).per(params[:per_page] || 20)
         
+        # Count results before rendering
+        total_count = @listings.total_count
+        
         render json: {
           listings: @listings.map { |listing| listing_json(listing) },
           meta: {
-            total_count: @listings.total_count,
+            total_count: total_count,
             total_pages: @listings.total_pages,
             current_page: @listings.current_page
           }
@@ -80,6 +85,17 @@ module Api
       end
       
       private
+      
+      def vehicle_filters_present?
+        params[:make].present? || params[:model].present? || 
+        params[:year_from].present? || params[:year_to].present? ||
+        params[:fuel_type].present? || params[:transmission].present?
+      end
+      
+      def vehicle_filter_params
+        params.slice(:make, :model, :year_from, :year_to, :fuel_type, :transmission)
+              .compact_blank
+      end
       
       def listing_json(listing, detailed: false)
         json = {
@@ -130,9 +146,7 @@ module Api
       def search_params_present?
         params[:keyword].present? || params[:min_price].present? || 
         params[:max_price].present? || params[:location].present? ||
-        params[:make].present? || params[:model].present? ||
-        params[:year_from].present? || params[:year_to].present? ||
-        params[:fuel_type].present? || params[:transmission].present?
+        vehicle_filters_present?
       end
       
       def save_search
