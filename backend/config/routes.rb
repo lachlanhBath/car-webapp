@@ -9,6 +9,32 @@ Rails.application.routes.draw do
   get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
 
+  # API routes
+  namespace :api do
+    namespace :v1 do
+      # Listings
+      resources :listings, only: [:index, :show]
+      
+      # Vehicles
+      resources :vehicles, only: [:show] do
+        collection do
+          post :lookup, to: 'vehicles#lookup_by_registration'
+        end
+        
+        member do
+          get :mot_histories
+        end
+      end
+      
+      # Searches
+      resources :searches, only: [:create] do
+        collection do
+          get :recent
+        end
+      end
+    end
+  end
+
   # Defines the root path route ("/")
   # root "posts#index"
 end
