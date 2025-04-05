@@ -40,6 +40,7 @@ module Api
           doors: vehicle.doors,
           registration: vehicle.registration,
           vin: vehicle.vin,
+          mileage: vehicle.mileage,
           listing: vehicle.listing ? {
             id: vehicle.listing.id,
             title: vehicle.listing.title,
