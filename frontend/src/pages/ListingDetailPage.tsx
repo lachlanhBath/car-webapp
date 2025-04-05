@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
 import { colors, spacing, typography, mixins, shadows } from '../styles/styleGuide';
+import Input from '../components/UI/Input';
 
 // Types
 interface Vehicle {
@@ -24,7 +25,6 @@ interface Vehicle {
   tax_due_date?: string;
   mot_status?: string;
   mot_expiry_date?: string;
-  purchase_summary?: string;
 }
 
 interface MOTHistoryEntry {
@@ -47,6 +47,24 @@ interface ListingDetail {
   source_url?: string;
   image_urls: string[];
   vehicle: Vehicle;
+}
+
+// Add interface for the cost estimate response
+interface CostEstimateResponse {
+  vehicle_id: number;
+  make: string;
+  model: string;
+  estimated_monthly_cost: {
+    total: number;
+    fuel: number;
+    maintenance: number;
+    tax: number;
+    insurance: number;
+  };
+  parameters: {
+    weekly_miles: number;
+    driving_style: string;
+  };
 }
 
 // Styled components
@@ -632,74 +650,6 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHist
   );
 };
 
-const AIPurchaseSummarySection = styled.div`
-  grid-column: 1 / -1; // Span all columns
-  margin-top: ${spacing[8]};
-`;
-
-const AIPoweredContainer = styled.div`
-  position: relative;
-  padding: ${spacing[5]};
-  border-radius: 8px;
-  background-color: rgba(101, 31, 255, 0.05);
-  margin-top: ${spacing[4]};
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 8px;
-    padding: 2px;
-    background: linear-gradient(
-      45deg,
-      ${colors.primary.light},
-      ${colors.primary.main},
-      #8f5fff,
-      #6320ee
-    );
-    -webkit-mask: 
-      linear-gradient(#fff 0 0) content-box, 
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: borderBeam 3s ease infinite;
-  }
-  
-  @keyframes borderBeam {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-`;
-
-const AIBadge = styled.div`
-  display: inline-flex;
-  align-items: center;
-  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
-  color: white;
-  font-size: ${typography.fontSize.xs};
-  font-weight: ${typography.fontWeight.medium};
-  border-radius: 4px;
-  padding: 3px 8px;
-  margin-bottom: ${spacing[3]};
-`;
-
-const PurchaseSummary = styled.div`
-  line-height: 1.7;
-  white-space: pre-line;
-  color: ${colors.text.primary};
-  font-size: ${typography.fontSize.base};
-`;
-
 // Add missing styled components for MOT details
 const MOTAdvisoriesTitle = styled.h4`
   font-size: ${typography.fontSize.base};
@@ -771,6 +721,100 @@ const MOTAdvisoryItem = styled.li`
   }
 `;
 
+// Add styled components for the cost calculator
+const CostCalculatorSection = styled.div`
+  grid-column: 1 / -1;
+  margin-top: ${spacing[8]};
+`;
+
+const CostCalculator = styled.div`
+  background-color: ${colors.light.surface};
+  border-radius: 12px;
+  padding: ${spacing[6]};
+  box-shadow: ${shadows.md};
+`;
+
+const CostForm = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: ${spacing[4]};
+  margin-bottom: ${spacing[6]};
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+interface CostResultsProps {
+  visible: boolean;
+}
+
+const CostResults = styled.div<CostResultsProps>`
+  background-color: ${colors.primary.main}10;
+  padding: ${spacing[6]};
+  border-radius: 8px;
+  margin-top: ${spacing[4]};
+  display: ${props => props.visible ? 'block' : 'none'};
+`;
+
+const CostBreakdown = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: ${spacing[4]};
+  margin-top: ${spacing[4]};
+`;
+
+const CostItem = styled.div`
+  text-align: center;
+  padding: ${spacing[4]};
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: ${shadows.sm};
+`;
+
+const CostValue = styled.div`
+  font-size: ${typography.fontSize['2xl']};
+  font-weight: ${typography.fontWeight.bold};
+  color: ${colors.primary.main};
+  margin-bottom: ${spacing[2]};
+`;
+
+const CostLabel = styled.div`
+  font-size: ${typography.fontSize.sm};
+  color: ${colors.text.secondary};
+`;
+
+const TotalCost = styled.div`
+  font-size: ${typography.fontSize['3xl']};
+  font-weight: ${typography.fontWeight.bold};
+  text-align: center;
+  margin-bottom: ${spacing[4]};
+`;
+
+const RadioGroup = styled.div`
+  display: flex;
+  gap: ${spacing[4]};
+  margin-top: ${spacing[2]};
+`;
+
+const RadioLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: ${spacing[2]};
+  cursor: pointer;
+  padding: ${spacing[2]} ${spacing[3]};
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: ${colors.light.border}50;
+  }
+`;
+
+const RadioInput = styled.input`
+  cursor: pointer;
+`;
+
 // Component
 const ListingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -783,6 +827,11 @@ const ListingDetailPage = () => {
   const [motError, setMotError] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
+  const [weeklyMiles, setWeeklyMiles] = useState('');
+  const [drivingStyle, setDrivingStyle] = useState('normal');
+  const [costEstimate, setCostEstimate] = useState<CostEstimateResponse | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -872,6 +921,42 @@ const ListingDetailPage = () => {
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const calculateMonthlyCosts = () => {
+    if (!weeklyMiles || !listing?.vehicle?.id) return;
+    
+    setIsCalculating(true);
+    setCalculationError(null);
+    
+    // Call the API endpoint
+    fetch(`/api/v1/vehicles/${listing.vehicle.id}/operating_cost_estimate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        weekly_miles: parseFloat(weeklyMiles),
+        driving_style: drivingStyle
+      })
+    })
+      .then((response: Response) => {
+        if (!response.ok) {
+          throw new Error('Failed to calculate monthly costs');
+        }
+        return response.json();
+      })
+      .then((data: CostEstimateResponse) => {
+        console.log('Cost estimate:', data);
+        setCostEstimate(data);
+      })
+      .catch((err: Error) => {
+        console.error('Error calculating costs:', err);
+        setCalculationError('Failed to calculate monthly costs. Please try again.');
+      })
+      .finally(() => {
+        setIsCalculating(false);
+      });
   };
 
   if (loading) {
@@ -1050,29 +1135,115 @@ const ListingDetailPage = () => {
         </div>
       </ListingGrid>
       
-      {/* Add AI Purchase Summary Section - Before Mileage Graph & MOT History */}
-      {listing.vehicle.purchase_summary ? (
-        <AIPurchaseSummarySection>
+      {!loading && !error && listing && (
+        <CostCalculatorSection>
           <DetailSection>
-            <SectionTitle>Purchase Analysis</SectionTitle>
-            <AIPoweredContainer>
-              <AIBadge>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
-                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
-                </svg>
-                AI-Generated Analysis
-              </AIBadge>
-              <PurchaseSummary>
-                {listing.vehicle.purchase_summary}
-              </PurchaseSummary>
-            </AIPoweredContainer>
+            <SectionTitle>Monthly Cost Estimator</SectionTitle>
+            <CostCalculator>
+              <p>Estimate your monthly operating costs based on your driving habits.</p>
+              <CostForm>
+                <div>
+                  <Input
+                    label="Weekly miles driven"
+                    type="number"
+                    value={weeklyMiles}
+                    onChange={(e) => setWeeklyMiles(e.target.value)}
+                    placeholder="e.g. 200"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: spacing[2] }}>
+                    Driving style
+                  </label>
+                  <RadioGroup>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="eco"
+                        checked={drivingStyle === 'eco'}
+                        onChange={() => setDrivingStyle('eco')}
+                      />
+                      Eco
+                    </RadioLabel>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="normal"
+                        checked={drivingStyle === 'normal'}
+                        onChange={() => setDrivingStyle('normal')}
+                      />
+                      Normal
+                    </RadioLabel>
+                    <RadioLabel>
+                      <RadioInput
+                        type="radio"
+                        name="drivingStyle"
+                        value="aggressive"
+                        checked={drivingStyle === 'aggressive'}
+                        onChange={() => setDrivingStyle('aggressive')}
+                      />
+                      Aggressive
+                    </RadioLabel>
+                  </RadioGroup>
+                </div>
+              </CostForm>
+              
+              <Button 
+                onClick={calculateMonthlyCosts} 
+                disabled={!weeklyMiles || isCalculating}
+                isLoading={isCalculating}
+                variant="primary"
+              >
+                Calculate Monthly Costs
+              </Button>
+              
+              {calculationError && (
+                <div style={{ color: colors.state.error, marginTop: spacing[4] }}>
+                  {calculationError}
+                </div>
+              )}
+              
+              <CostResults visible={!!costEstimate}>
+                {costEstimate && (
+                  <>
+                    <TotalCost>
+                      £{costEstimate.estimated_monthly_cost.total} per month
+                    </TotalCost>
+                    
+                    <CostBreakdown>
+                      <CostItem>
+                        <CostValue>£{costEstimate.estimated_monthly_cost.fuel}</CostValue>
+                        <CostLabel>Fuel</CostLabel>
+                      </CostItem>
+                      <CostItem>
+                        <CostValue>£{costEstimate.estimated_monthly_cost.maintenance}</CostValue>
+                        <CostLabel>Maintenance</CostLabel>
+                      </CostItem>
+                      <CostItem>
+                        <CostValue>£{costEstimate.estimated_monthly_cost.tax}</CostValue>
+                        <CostLabel>Road Tax</CostLabel>
+                      </CostItem>
+                      <CostItem>
+                        <CostValue>£{costEstimate.estimated_monthly_cost.insurance}</CostValue>
+                        <CostLabel>Insurance</CostLabel>
+                      </CostItem>
+                    </CostBreakdown>
+                    
+                    <div style={{ textAlign: 'center', marginTop: spacing[6], fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                      Based on {costEstimate.parameters.weekly_miles} miles per week with {costEstimate.parameters.driving_style} driving style.
+                    </div>
+                  </>
+                )}
+              </CostResults>
+            </CostCalculator>
           </DetailSection>
-        </AIPurchaseSummarySection>
-      ) : null}
+        </CostCalculatorSection>
+      )}
       
-      {/* Add Mileage Graph Section - After AI summary but before MOT History */}
+      {/* Add Mileage Graph Section - Before MOT History */}
       {!motLoading && !motError && motHistory.length > 0 && (
         <MileageGraphSection>
           <DetailSection>
