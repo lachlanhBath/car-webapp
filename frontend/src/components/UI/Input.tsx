@@ -1,182 +1,133 @@
-import React, { InputHTMLAttributes } from 'react';
+import React, { forwardRef, InputHTMLAttributes } from 'react';
 import styled from 'styled-components';
-import { colors, typography, spacing, borderRadius } from '../../styles/styleGuide';
+import { colors, spacing, typography, shadows } from '../../styles/styleGuide';
 
-interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
-  size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
 }
 
-interface StyledInputContainerProps {
-  $fullWidth?: boolean;
-  $hasError?: boolean;
-}
-
-interface StyledInputProps {
-  $size: 'small' | 'medium' | 'large';
-  $hasLeftIcon?: boolean;
-  $hasRightIcon?: boolean;
-  $hasError?: boolean;
-}
-
-const getSizePadding = (size: 'small' | 'medium' | 'large') => {
-  switch (size) {
-    case 'small':
-      return `${spacing[2]} ${spacing[3]}`;
-    case 'large':
-      return `${spacing[4]} ${spacing[5]}`;
-    default:
-      return `${spacing[3]} ${spacing[4]}`;
-  }
-};
-
-const getHeight = (size: 'small' | 'medium' | 'large') => {
-  switch (size) {
-    case 'small':
-      return '32px';
-    case 'large':
-      return '48px';
-    default:
-      return '40px';
-  }
-};
-
-const getFontSize = (size: 'small' | 'medium' | 'large') => {
-  switch (size) {
-    case 'small':
-      return typography.fontSize.sm;
-    case 'large':
-      return typography.fontSize.lg;
-    default:
-      return typography.fontSize.base;
-  }
-};
-
-const InputContainer = styled.div<StyledInputContainerProps>`
+const InputContainer = styled.div<{ $fullWidth?: boolean }>`
   display: flex;
   flex-direction: column;
-  margin-bottom: ${spacing[4]};
   width: ${props => props.$fullWidth ? '100%' : 'auto'};
+  margin-bottom: ${spacing[4]};
 `;
 
-const InputLabel = styled.label`
+const Label = styled.label`
   font-size: ${typography.fontSize.sm};
   font-weight: ${typography.fontWeight.medium};
-  margin-bottom: ${spacing[2]};
-  color: ${colors.text.secondary};
+  margin-bottom: ${spacing[1]};
+  color: ${colors.text.primary};
 `;
 
 const InputWrapper = styled.div`
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 `;
 
-const IconWrapper = styled.div<{ $position: 'left' | 'right' }>`
+const IconContainer = styled.div<{ $position: 'left' | 'right' }>`
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  ${props => props.$position === 'left' ? `left: ${spacing[3]};` : `right: ${spacing[3]};`}
   display: flex;
   align-items: center;
   justify-content: center;
+  top: 0;
+  bottom: 0;
+  ${props => props.$position === 'left' ? 'left: 0;' : 'right: 0;'}
+  width: 40px;
   color: ${colors.text.secondary};
   pointer-events: none;
 `;
 
-const StyledInput = styled.input<StyledInputProps>`
-  height: ${props => getHeight(props.$size)};
-  padding: ${props => getSizePadding(props.$size)};
-  font-size: ${props => getFontSize(props.$size)};
-  font-family: ${typography.fontFamily.primary};
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid ${props => props.$hasError ? colors.state.error : colors.dark.border};
-  border-radius: ${borderRadius.md};
-  color: ${colors.text.primary};
+const StyledInput = styled.input<{ $hasError?: boolean; $hasIcon?: boolean; $iconPosition?: 'left' | 'right' }>`
   width: 100%;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  outline: none;
-  
-  ${props => props.$hasLeftIcon && `padding-left: ${spacing[8]};`}
-  ${props => props.$hasRightIcon && `padding-right: ${spacing[8]};`}
+  padding: ${spacing[2]} ${spacing[3]};
+  padding-left: ${props => (props.$hasIcon && props.$iconPosition === 'left') ? spacing[10] : spacing[3]};
+  padding-right: ${props => (props.$hasIcon && props.$iconPosition === 'right') ? spacing[10] : spacing[3]};
+  border: 1px solid ${props => props.$hasError ? colors.state.error : colors.dark.border};
+  border-radius: 6px;
+  background-color: ${props => props.$hasError ? 'rgba(255, 61, 0, 0.05)' : colors.dark.background};
+  color: ${colors.text.primary};
+  font-size: ${typography.fontSize.base};
+  line-height: ${typography.lineHeight.normal};
+  transition: all 0.2s ease;
   
   &:focus {
+    outline: none;
     border-color: ${props => props.$hasError ? colors.state.error : colors.primary.main};
-    box-shadow: 0 0 0 1px ${props => props.$hasError ? colors.state.error : colors.primary.main};
+    box-shadow: ${props => props.$hasError 
+      ? `0 0 0 3px rgba(255, 61, 0, 0.15)` 
+      : `0 0 0 3px rgba(56, 152, 236, 0.15)`};
   }
   
-  &:disabled {
-    background-color: rgba(255, 255, 255, 0.02);
-    color: ${colors.text.disabled};
-    cursor: not-allowed;
+  &:hover {
+    border-color: ${props => props.$hasError ? colors.state.error : colors.primary.main};
   }
   
   &::placeholder {
-    color: ${colors.text.hint};
+    color: ${colors.text.disabled};
+  }
+  
+  &:disabled {
+    background-color: rgba(30, 31, 34, 0.5);
+    border-color: ${colors.dark.border};
+    color: ${colors.text.disabled};
+    cursor: not-allowed;
   }
 `;
 
-const InputMessage = styled.span<{ $isError?: boolean }>`
-  font-size: ${typography.fontSize.sm};
+const ErrorMessage = styled.div`
+  color: ${colors.state.error};
+  font-size: ${typography.fontSize.xs};
   margin-top: ${spacing[1]};
-  color: ${props => props.$isError ? colors.state.error : colors.text.hint};
 `;
 
-export const Input: React.FC<InputProps> = ({
-  label,
-  error,
-  hint,
-  size = 'medium',
-  fullWidth = false,
-  leftIcon,
-  rightIcon,
-  id,
-  disabled,
-  ...props
-}) => {
-  // Generate a unique ID if not provided
-  const inputId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
-  
-  return (
-    <InputContainer $fullWidth={fullWidth} $hasError={!!error}>
-      {label && <InputLabel htmlFor={inputId}>{label}</InputLabel>}
-      
-      <InputWrapper>
-        {leftIcon && (
-          <IconWrapper $position="left">
-            {leftIcon}
-          </IconWrapper>
-        )}
-        
-        <StyledInput
-          id={inputId}
-          $size={size}
-          $hasLeftIcon={!!leftIcon}
-          $hasRightIcon={!!rightIcon}
-          $hasError={!!error}
-          disabled={disabled}
-          {...props}
-        />
-        
-        {rightIcon && (
-          <IconWrapper $position="right">
-            {rightIcon}
-          </IconWrapper>
-        )}
-      </InputWrapper>
-      
-      {(error || hint) && (
-        <InputMessage $isError={!!error}>
-          {error || hint}
-        </InputMessage>
-      )}
-    </InputContainer>
-  );
-};
+const HintText = styled.div`
+  color: ${colors.text.secondary};
+  font-size: ${typography.fontSize.xs};
+  margin-top: ${spacing[1]};
+`;
+
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ 
+    label, 
+    error, 
+    hint, 
+    fullWidth, 
+    icon, 
+    iconPosition = 'left', 
+    ...props 
+  }, ref) => {
+    return (
+      <InputContainer $fullWidth={fullWidth}>
+        {label && <Label htmlFor={props.id}>{label}</Label>}
+        <InputWrapper>
+          {icon && (
+            <IconContainer $position={iconPosition}>
+              {icon}
+            </IconContainer>
+          )}
+          <StyledInput
+            ref={ref}
+            $hasError={!!error}
+            $hasIcon={!!icon}
+            $iconPosition={iconPosition}
+            {...props}
+          />
+        </InputWrapper>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+        {hint && !error && <HintText>{hint}</HintText>}
+      </InputContainer>
+    );
+  }
+);
+
+Input.displayName = 'Input';
 
 export default Input; 
