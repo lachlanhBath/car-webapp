@@ -65,11 +65,56 @@ const TRANSMISSION_TYPES = [
   { value: 'cvt', label: 'CVT' }
 ];
 
+// Update QUICK_FILTERS to fix type issues
+const QUICK_FILTERS = [
+  { 
+    id: 'bmw_range',
+    label: 'BMW £10k-£30k', 
+    filters: { 
+      make: 'BMW',
+      minPrice: '10000',
+      maxPrice: '30000' 
+    } 
+  },
+  { 
+    id: 'electric',
+    label: 'Electric Vehicles', 
+    filters: { 
+      fuelType: 'electric' 
+    } 
+  },
+  { 
+    id: 'under_5k',
+    label: 'Under £5,000', 
+    filters: { 
+      maxPrice: '5000' 
+    } 
+  },
+  { 
+    id: 'newest',
+    label: '2020 or newer', 
+    filters: { 
+      yearFrom: '2020' 
+    } 
+  },
+  { 
+    id: 'automatic',
+    label: 'Automatic', 
+    filters: { 
+      transmission: 'automatic' 
+    } 
+  }
+];
+
 // Styled components
 const PageContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: ${spacing[6]};
+  
+  @media (max-width: 768px) {
+    padding: ${spacing[4]};
+  }
 `;
 
 const PageHeader = styled.div`
@@ -78,17 +123,124 @@ const PageHeader = styled.div`
 
 const Title = styled.h1`
   font-size: ${typography.fontSize['4xl']};
-  margin-bottom: ${spacing[4]};
+  font-weight: ${typography.fontWeight.bold};
+  color: ${colors.text.primary};
+  margin-bottom: ${spacing[6]};
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background-color: ${colors.primary.main};
+    border-radius: 2px;
+  }
 `;
 
-const FiltersContainer = styled.div`
+const FilterBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: ${spacing[3]};
+  font-size: ${typography.fontSize.base};
+  font-weight: ${typography.fontWeight.semibold};
+  color: white;
+  background-color: ${colors.primary.main};
+  padding: ${spacing[1]} ${spacing[3]};
+  border-radius: 20px;
+  vertical-align: middle;
+`;
+
+const QuickFiltersContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${spacing[2]};
+  margin-bottom: ${spacing[6]};
+`;
+
+const QuickFilterChip = styled.button<{ $active?: boolean }>`
+  background-color: ${props => props.$active ? `${colors.primary.main}15` : 'transparent'};
+  border: 1px solid ${props => props.$active ? colors.primary.main : colors.dark.border};
+  border-radius: 24px;
+  padding: ${spacing[2]} ${spacing[4]};
+  font-size: ${typography.fontSize.sm};
+  font-weight: ${typography.fontWeight.medium};
+  color: ${props => props.$active ? colors.primary.main : colors.text.primary};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: ${colors.primary.main};
+    background-color: ${colors.primary.main}10;
+    transform: translateY(-2px);
+  }
+`;
+
+const FilterSection = styled.div`
+  background-color: ${colors.dark.surface};
+  border-radius: 12px;
+  padding: ${spacing[6]};
+  margin-bottom: ${spacing[8]};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid ${colors.dark.border};
+`;
+
+const FilterSectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding-bottom: ${spacing[4]};
+`;
+
+const FilterArrow = styled.div<{ $expanded: boolean }>`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+  transform: ${props => props.$expanded ? 'rotate(180deg)' : 'rotate(0)'};
+  color: ${colors.text.secondary};
+`;
+
+const FilterContent = styled.div<{ $expanded: boolean }>`
+  display: ${props => props.$expanded ? 'block' : 'none'};
+  animation: ${props => props.$expanded ? 'fadeIn 0.3s ease' : 'none'};
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const FilterSectionTitle = styled.h3`
+  font-size: ${typography.fontSize.xl};
+  font-weight: ${typography.fontWeight.semibold};
+  color: ${colors.text.primary};
+  display: flex;
+  align-items: center;
+  margin: 0;
+  
+  svg {
+    margin-right: ${spacing[2]};
+    color: ${colors.primary.main};
+  }
+`;
+
+const FilterGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: ${spacing[4]};
-  margin-bottom: ${spacing[6]};
-  background-color: ${colors.dark.surface};
-  padding: ${spacing[6]};
-  border-radius: 8px;
+  gap: ${spacing[5]};
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr 1fr;
@@ -103,12 +255,12 @@ const ActionButtons = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${spacing[4]};
-  margin-top: ${spacing[4]};
+  margin-top: ${spacing[6]};
 `;
 
 const ListingsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: ${spacing[6]};
   margin-bottom: ${spacing[8]};
   
@@ -121,14 +273,24 @@ const ListingCard = styled(Card)`
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 12px;
+  border: 1px solid ${colors.dark.border};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  }
 `;
 
 const ListingImageContainer = styled.div`
   position: relative;
-  height: 200px;
+  height: 220px;
   margin: -${spacing[6]} -${spacing[6]} 0;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
   overflow: hidden;
 `;
 
@@ -136,33 +298,42 @@ const ListingImage = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.5s ease;
+  
+  ${ListingCard}:hover & {
+    transform: scale(1.08);
+  }
 `;
 
 const ListingPrice = styled.div`
   position: absolute;
   bottom: ${spacing[4]};
   right: ${spacing[4]};
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.75);
   color: white;
-  padding: ${spacing[2]} ${spacing[3]};
-  border-radius: 4px;
+  padding: ${spacing[2]} ${spacing[4]};
+  border-radius: 8px;
   font-weight: ${typography.fontWeight.bold};
+  font-size: ${typography.fontSize.lg};
 `;
 
 const ListingContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: ${spacing[4]};
+  padding-top: ${spacing[5]};
 `;
 
 const ListingTitle = styled.h3`
   font-size: ${typography.fontSize.xl};
+  font-weight: ${typography.fontWeight.semibold};
   margin-bottom: ${spacing[2]};
+  line-height: 1.3;
   
   a {
     color: ${colors.text.primary};
     text-decoration: none;
+    transition: color 0.2s ease;
     
     &:hover {
       color: ${colors.primary.main};
@@ -172,21 +343,26 @@ const ListingTitle = styled.h3`
 
 const ListingLocation = styled.div`
   color: ${colors.text.secondary};
-  margin-bottom: ${spacing[3]};
+  margin-bottom: ${spacing[4]};
   font-size: ${typography.fontSize.sm};
   display: flex;
   align-items: center;
   
   svg {
-    margin-right: ${spacing[1]};
+    margin-right: ${spacing[2]};
+    color: ${colors.primary.main};
   }
 `;
 
 const ListingSpecs = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: ${spacing[3]} ${spacing[4]};
-  margin-bottom: ${spacing[4]};
+  gap: ${spacing[4]} ${spacing[5]};
+  margin-bottom: ${spacing[5]};
+  background-color: ${colors.dark.surface}40;
+  padding: ${spacing[4]};
+  border-radius: 8px;
+  border: 1px solid ${colors.dark.border}40;
 `;
 
 const SpecItem = styled.div`
@@ -197,36 +373,77 @@ const SpecItem = styled.div`
 const SpecLabel = styled.span`
   font-size: ${typography.fontSize.xs};
   color: ${colors.text.secondary};
-  margin-bottom: 2px;
+  margin-bottom: ${spacing[1]};
   display: flex;
   align-items: center;
-  gap: 4px;
 `;
 
 const SpecValue = styled.span`
-  font-size: ${typography.fontSize.sm};
-`;
-
-const PurchaseSummaryPreview = styled.div`
-  margin-top: ${spacing[2]};
-  margin-bottom: ${spacing[4]};
-  color: ${colors.text.primary};
-  font-size: ${typography.fontSize.sm};
   font-weight: ${typography.fontWeight.medium};
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  color: ${colors.text.primary};
 `;
 
+// Keep gradient for AI elements
+const AIBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, ${colors.primary.main}30, #8355ff30);
+  color: ${colors.primary.main};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.semibold};
+  padding: ${spacing[1]} ${spacing[2]};
+  border-radius: 4px;
+  margin-bottom: ${spacing[2]};
+  
+  svg {
+    margin-right: ${spacing[1]};
+  }
+`;
+
+// Keep gradient for AI elements
+const SmallAITag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, ${colors.primary.main}40, #8355ff40);
+  color: ${colors.primary.main};
+  font-size: 9px;
+  font-weight: ${typography.fontWeight.bold};
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-left: ${spacing[1]};
+`;
+
+const MOTStatusBadge = styled.span<{ status: string }>`
+  display: inline-flex;
+  align-items: center;
+  background-color: ${({ status }) => 
+    status.toLowerCase() === 'valid' 
+      ? colors.state.success + '30' 
+      : status.toLowerCase() === 'expired'
+        ? colors.state.error + '30'
+        : colors.state.warning + '30'};
+  color: ${({ status }) => 
+    status.toLowerCase() === 'valid' 
+      ? colors.state.success 
+      : status.toLowerCase() === 'expired'
+        ? colors.state.error
+        : colors.state.warning};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.semibold};
+  padding: ${spacing[1]} ${spacing[2]};
+  border-radius: 4px;
+`;
+
+// Keep gradient for AI elements
 const AIPoweredContainer = styled.div`
-  position: relative;
-  padding: ${spacing[3]};
-  border-radius: 6px;
-  background-color: rgba(101, 31, 255, 0.05);
+  margin-top: ${spacing[3]};
   margin-bottom: ${spacing[4]};
+  padding: ${spacing[3]};
+  background: linear-gradient(135deg, rgba(131, 85, 255, 0.05), rgba(131, 85, 255, 0.1));
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
   
   &::before {
     content: '';
@@ -234,79 +451,110 @@ const AIPoweredContainer = styled.div`
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    border-radius: 6px;
-    padding: 2px;
-    background: linear-gradient(
-      135deg,
-      ${colors.primary.light},
-      ${colors.primary.main},
-      #8f5fff,
-      #6320ee,
-      #8f5fff,
-      ${colors.primary.main}
-    );
-    background-size: 400% 400%;
-    -webkit-mask: 
-      linear-gradient(#fff 0 0) content-box, 
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: borderBeam 4s ease infinite;
+    height: 2px;
+    background: linear-gradient(90deg, ${colors.primary.main}, #8355ff);
   }
+`;
+
+const PurchaseSummaryPreview = styled.p`
+  font-size: ${typography.fontSize.sm};
+  color: ${colors.text.secondary};
+  margin: ${spacing[2]} 0 0;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+`;
+
+const BadgeBase = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing[2]};
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.semibold};
+  padding: ${spacing[2]} ${spacing[3]};
+  border-radius: 8px;
+  margin-bottom: ${spacing[3]};
   
-  @keyframes borderBeam {
+  svg {
+    flex-shrink: 0;
+  }
+`;
+
+const RepairEstimateBadge = styled(BadgeBase)`
+  background-color: ${colors.state.warning}20;
+  color: ${colors.state.warning};
+`;
+
+const ExpectedLifetimeBadge = styled(BadgeBase)`
+  background-color: ${colors.primary.main}15;
+  color: ${colors.primary.main};
+`;
+
+const LoadingSkeleton = styled.div`
+  background: linear-gradient(90deg, ${colors.dark.surface} 0%, ${colors.dark.border}40 50%, ${colors.dark.surface} 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+  height: 380px;
+  margin-bottom: ${spacing[6]};
+  
+  @keyframes shimmer {
     0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
+      background-position: 200% 0;
     }
     100% {
-      background-position: 0% 50%;
+      background-position: -200% 0;
     }
   }
 `;
 
-const AIBadge = styled.div`
-  display: inline-flex;
+const ResultsInfo = styled.div`
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
-  background-size: 200% 100%;
-  color: white;
-  font-size: ${typography.fontSize.xs};
-  font-weight: ${typography.fontWeight.medium};
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-bottom: ${spacing[2]};
-  animation: shimmerBadge 2s ease-in-out infinite alternate;
+  margin-bottom: ${spacing[5]};
+  padding-bottom: ${spacing[4]};
+  border-bottom: 1px solid ${colors.dark.border};
+`;
+
+const ResultsCount = styled.div`
+  font-size: ${typography.fontSize.lg};
+  color: ${colors.text.primary};
+  font-weight: ${typography.fontWeight.semibold};
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: ${spacing[8]};
+  background-color: ${colors.dark.surface};
+  border-radius: 12px;
+  border: 1px solid ${colors.dark.border};
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  
+  h3 {
+    font-size: ${typography.fontSize.xl};
+    margin-bottom: ${spacing[4]};
+    font-weight: ${typography.fontWeight.semibold};
+  }
+  
+  p {
+    color: ${colors.text.secondary};
+    margin-bottom: ${spacing[6]};
+    max-width: 400px;
+  }
   
   svg {
-    animation: pulseIcon 1.5s ease-in-out infinite;
-  }
-  
-  @keyframes shimmerBadge {
-    0% {
-      background-position: 0% 50%;
-    }
-    100% {
-      background-position: 100% 50%;
-    }
-  }
-  
-  @keyframes pulseIcon {
-    0% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-    50% {
-      transform: scale(1.15);
-      opacity: 1;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
+    width: 60px;
+    height: 60px;
+    margin-bottom: ${spacing[4]};
+    color: ${colors.primary.main};
   }
 `;
 
@@ -314,6 +562,7 @@ const PaginationContainer = styled.div`
   display: flex;
   justify-content: center;
   margin-top: ${spacing[8]};
+  margin-bottom: ${spacing[4]};
 `;
 
 const PaginationButton = styled(Button)<{ $active?: boolean }>`
@@ -322,164 +571,12 @@ const PaginationButton = styled(Button)<{ $active?: boolean }>`
   background-color: ${props => props.$active ? colors.primary.main : 'transparent'};
   border: 1px solid ${props => props.$active ? colors.primary.main : colors.dark.border};
   color: ${props => props.$active ? colors.primary.contrast : colors.text.primary};
-  
-  &:hover {
-    background-color: ${props => props.$active ? colors.primary.main : 'rgba(255, 255, 255, 0.1)'};
-  }
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: ${spacing[8]};
-  background-color: ${colors.dark.surface};
-  border-radius: 8px;
-  
-  h3 {
-    margin-bottom: ${spacing[4]};
-  }
-  
-  p {
-    color: ${colors.text.secondary};
-    margin-bottom: ${spacing[6]};
-  }
-`;
-
-// Update SmallAITag to remove the border effect
-const SmallAITag = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
-  background-size: 200% 100%;
-  color: white;
-  font-size: 10px;
-  font-weight: ${typography.fontWeight.medium};
-  border-radius: 3px;
-  padding: 2px 4px;
-  margin-left: 4px;
-  vertical-align: middle;
-  animation: shimmerBadge 2s ease-in-out infinite alternate;
-`;
-
-// Update the registration field in the listings card
-const AIDetectedRegistration = styled.span`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 4px;
-  background-color: rgba(101, 31, 255, 0.05);
-  border-radius: 3px;
-  margin-right: 4px;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 3px;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      ${colors.primary.light},
-      ${colors.primary.main},
-      #8f5fff,
-      #6320ee,
-      #8f5fff,
-      ${colors.primary.main}
-    );
-    background-size: 400% 400%;
-    -webkit-mask: 
-      linear-gradient(#fff 0 0) content-box, 
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: borderBeamSmall 4s ease infinite;
-  }
-`;
-
-// Add a styled component for the MOT status badge
-const MOTStatusBadge = styled.span<{ status?: string }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: ${typography.fontSize.xs};
-  font-weight: ${typography.fontWeight.medium};
-  background-color: ${props => 
-    props.status?.toLowerCase() === 'valid' ? `${colors.state.success}20` : 
-    props.status?.toLowerCase() === 'expired' ? `${colors.state.error}20` : 
-    `${colors.state.warning}20`
-  };
-  color: ${props => 
-    props.status?.toLowerCase() === 'valid' ? colors.state.success : 
-    props.status?.toLowerCase() === 'expired' ? colors.state.error : 
-    colors.state.warning
-  };
-  white-space: nowrap;
-`;
-
-// Add a styled component for the repair estimate badge
-const RepairEstimateBadge = styled.div`
-  display: inline-flex;
-  align-items: center;
-  background-color: ${colors.state.warning}15;
-  color: ${colors.state.warning};
-  font-size: ${typography.fontSize.xs};
-  font-weight: ${typography.fontWeight.medium};
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-top: ${spacing[2]};
-  margin-bottom: ${spacing[2]};
-  
-  svg {
-    margin-right: 4px;
-    flex-shrink: 0;
-  }
-`;
-
-// Add a styled component for the expected lifetime badge
-const ExpectedLifetimeBadge = styled.div`
-  display: inline-flex;
-  align-items: center;
-  background-color: ${colors.primary.main}15;
-  color: ${colors.primary.main};
-  font-size: ${typography.fontSize.xs};
-  font-weight: ${typography.fontWeight.medium};
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-top: ${spacing[2]};
-  margin-bottom: ${spacing[2]};
-  
-  svg {
-    margin-right: 4px;
-    flex-shrink: 0;
-  }
-`;
-
-// Add a styled component for suggested searches
-const SuggestedSearches = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${spacing[2]};
-  margin-bottom: ${spacing[4]};
-`;
-
-const SuggestedSearch = styled.button`
-  background-color: ${colors.dark.surface};
-  border: 1px solid ${colors.dark.border};
-  border-radius: 20px;
-  padding: ${spacing[1]} ${spacing[3]};
-  font-size: ${typography.fontSize.sm};
-  color: ${colors.text.primary};
-  cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background-color: ${colors.primary.main}20;
+    background-color: ${props => props.$active ? colors.primary.main : colors.primary.main + '10'};
     border-color: ${colors.primary.main};
+    transform: translateY(-2px);
   }
 `;
 
@@ -506,6 +603,7 @@ const ListingsPage: React.FC = () => {
     fuelType: '',
     transmission: ''
   });
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   useEffect(() => {
     fetchListings();
@@ -791,6 +889,20 @@ const ListingsPage: React.FC = () => {
     setTimeout(fetchListings, 0);
   };
 
+  // In the ListingsPage component, add a function to handle quick filters
+  const handleQuickFilter = (presetFilters: Partial<typeof filters>) => {
+    setFilters(prev => ({
+      ...prev,
+      ...presetFilters
+    }));
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    fetchListings();
+  };
+
+  const toggleFilters = () => {
+    setFiltersExpanded(!filtersExpanded);
+  };
+
   return (
     <PageContainer>
       <PageHeader>
@@ -808,130 +920,146 @@ const ListingsPage: React.FC = () => {
               {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'} active
             </span>
           )}
+          {!loading && pagination.totalCount > 0 && (
+            <span style={{ 
+              marginLeft: spacing[3], 
+              fontSize: typography.fontSize.lg,
+              color: colors.text.secondary,
+            }}>
+              {pagination.totalCount} {pagination.totalCount === 1 ? 'vehicle' : 'vehicles'} found
+            </span>
+          )}
         </Title>
         
-        <SuggestedSearches>
-          <SuggestedSearch onClick={() => applyPredefinedFilter({
-            make: 'BMW',
-            minPrice: '10000',
-            maxPrice: '30000'
-          })}>
-            BMW £10k-£30k
-          </SuggestedSearch>
-          <SuggestedSearch onClick={() => applyPredefinedFilter({
-            fuelType: 'electric'
-          })}>
-            Electric Vehicles
-          </SuggestedSearch>
-          <SuggestedSearch onClick={() => applyPredefinedFilter({
-            minPrice: '',
-            maxPrice: '5000'
-          })}>
-            Under £5,000
-          </SuggestedSearch>
-          <SuggestedSearch onClick={() => applyPredefinedFilter({
-            yearFrom: '2020'
-          })}>
-            2020 or newer
-          </SuggestedSearch>
-          <SuggestedSearch onClick={() => applyPredefinedFilter({
-            transmission: 'automatic'
-          })}>
-            Automatic
-          </SuggestedSearch>
-        </SuggestedSearches>
+        <QuickFiltersContainer>
+          {QUICK_FILTERS.map((quickFilter, index) => (
+            <QuickFilterChip
+              key={index}
+              $active={
+                Object.entries(quickFilter.filters).some(([key, value]) => 
+                  Array.isArray(value) 
+                    ? (filters[key as keyof typeof filters] as any)?.includes(value[0])
+                    : filters[key as keyof typeof filters] === value
+                )
+              }
+              onClick={() => handleQuickFilter(quickFilter.filters)}
+            >
+              {quickFilter.label}
+            </QuickFilterChip>
+          ))}
+        </QuickFiltersContainer>
         
-        <FiltersContainer>
-          <Input 
-            label="Make"
-            name="make"
-            value={filters.make}
-            onChange={handleFilterChange}
-            placeholder="Any make"
-          />
-          
-          <Input 
-            label="Model"
-            name="model"
-            value={filters.model}
-            onChange={handleFilterChange}
-            placeholder="Any model"
-          />
-          
-          <Input 
-            label="Min Price"
-            name="minPrice"
-            type="number"
-            value={filters.minPrice}
-            onChange={handleFilterChange}
-            placeholder="£"
-          />
-          
-          <Input 
-            label="Max Price"
-            name="maxPrice"
-            type="number"
-            value={filters.maxPrice}
-            onChange={handleFilterChange}
-            placeholder="£"
-          />
-          
-          <Input 
-            label="Year From"
-            name="yearFrom"
-            type="number"
-            value={filters.yearFrom}
-            onChange={handleFilterChange}
-            placeholder="From"
-          />
-          
-          <Input 
-            label="Year To"
-            name="yearTo"
-            type="number"
-            value={filters.yearTo}
-            onChange={handleFilterChange}
-            placeholder="To"
-          />
-          
-          <Select
-            label="Fuel Type"
-            name="fuelType"
-            value={filters.fuelType}
-            onChange={handleFilterChange}
-            options={FUEL_TYPES}
-          />
-          
-          <Select
-            label="Transmission"
-            name="transmission"
-            value={filters.transmission}
-            onChange={handleFilterChange}
-            options={TRANSMISSION_TYPES}
-          />
-          
-          <ActionButtons>
-            <Button 
-              variant="secondary" 
-              onClick={handleResetFilters}
-              disabled={filterLoading || activeFilters === 0}
-            >
-              Reset Filters
-            </Button>
-            <Button 
-              onClick={handleApplyFilters}
-              disabled={filterLoading}
-            >
-              {filterLoading ? 'Applying...' : 'Apply Filters'}
-            </Button>
-          </ActionButtons>
-        </FiltersContainer>
+        <FilterSection>
+          <FilterSectionHeader onClick={toggleFilters}>
+            <FilterSectionTitle>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 0.55 0.45 1 1 1h2c0.55 0 1-0.45 1-1v-6s3.72-4.8 5.74-7.39C20.25 4.95 19.78 4 18.95 4H5.04C4.21 4 3.74 4.95 4.25 5.61z" fill="currentColor"/>
+              </svg>
+              Filter Vehicles {activeFilters > 0 && `(${activeFilters} active)`}
+            </FilterSectionTitle>
+            <FilterArrow $expanded={filtersExpanded}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </FilterArrow>
+          </FilterSectionHeader>
+
+          <FilterContent $expanded={filtersExpanded}>
+            <FilterGrid>
+              <Input 
+                label="Make"
+                name="make"
+                value={filters.make}
+                onChange={handleFilterChange}
+                placeholder="Any make"
+              />
+              
+              <Input 
+                label="Model"
+                name="model"
+                value={filters.model}
+                onChange={handleFilterChange}
+                placeholder="Any model"
+              />
+              
+              <Input 
+                label="Min Price"
+                name="minPrice"
+                type="number"
+                value={filters.minPrice}
+                onChange={handleFilterChange}
+                placeholder="£"
+              />
+              
+              <Input 
+                label="Max Price"
+                name="maxPrice"
+                type="number"
+                value={filters.maxPrice}
+                onChange={handleFilterChange}
+                placeholder="£"
+              />
+              
+              <Input 
+                label="Year From"
+                name="yearFrom"
+                type="number"
+                value={filters.yearFrom}
+                onChange={handleFilterChange}
+                placeholder="From"
+              />
+              
+              <Input 
+                label="Year To"
+                name="yearTo"
+                type="number"
+                value={filters.yearTo}
+                onChange={handleFilterChange}
+                placeholder="To"
+              />
+              
+              <Select
+                label="Fuel Type"
+                name="fuelType"
+                value={filters.fuelType}
+                onChange={handleFilterChange}
+                options={FUEL_TYPES}
+              />
+              
+              <Select
+                label="Transmission"
+                name="transmission"
+                value={filters.transmission}
+                onChange={handleFilterChange}
+                options={TRANSMISSION_TYPES}
+              />
+            </FilterGrid>
+            
+            <ActionButtons>
+              <Button 
+                variant="secondary" 
+                onClick={handleResetFilters}
+                disabled={filterLoading || activeFilters === 0}
+              >
+                Reset Filters
+              </Button>
+              <Button 
+                onClick={handleApplyFilters}
+                disabled={filterLoading}
+              >
+                {filterLoading ? 'Applying...' : 'Apply Filters'}
+              </Button>
+            </ActionButtons>
+          </FilterContent>
+        </FilterSection>
       </PageHeader>
       
       {loading ? (
-        <EmptyState>
-          <h3>Loading listings...</h3>
-        </EmptyState>
+        <>
+          <LoadingSkeleton />
+          <LoadingSkeleton />
+          <LoadingSkeleton />
+        </>
       ) : listings.length > 0 ? (
         <>
           <ListingsGrid>
@@ -1072,6 +1200,12 @@ const ListingsPage: React.FC = () => {
                       as={Link}
                       to={`/listings/${listing.id}`}
                       fullWidth
+                      icon={
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8 12H16M16 12L12 8M16 12L12 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      }
+                      iconPosition="right"
                     >
                       View Details
                     </Button>
