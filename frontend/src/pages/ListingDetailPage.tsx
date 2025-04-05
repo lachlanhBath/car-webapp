@@ -760,6 +760,8 @@ const CostResults = styled.div<CostResultsProps>`
   border-radius: 8px;
   margin-top: ${spacing[4]};
   display: ${props => props.visible ? 'block' : 'none'};
+  overflow: hidden;
+  max-width: 100%;
 `;
 
 const CostBreakdown = styled.div`
@@ -794,6 +796,13 @@ const TotalCost = styled.div`
   font-weight: ${typography.fontWeight.bold};
   text-align: center;
   margin-bottom: ${spacing[4]};
+  
+  div {
+    font-size: ${typography.fontSize.lg};
+    color: ${colors.text.secondary};
+    margin-top: ${spacing[2]};
+    font-weight: ${typography.fontWeight.medium};
+  }
 `;
 
 const RadioGroup = styled.div`
@@ -902,12 +911,16 @@ const CostAreaChart = styled.div`
   border-radius: 10px;
   box-shadow: ${shadows.md};
   border: 1px solid ${colors.light.border};
-  height: 300px;
+  min-height: 300px;
+  height: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 `;
 
 // Add state for forecast period
 const SliderContainer = styled.div`
-  margin: ${spacing[4]} 0;
+  margin: ${spacing[4]} 0 ${spacing[6]} 0;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -985,12 +998,12 @@ const ListingDetailPage = () => {
   // Move the forecastPeriod state hook inside the component
   const [forecastPeriod, setForecastPeriod] = useState(12);
 
-  // Update the monthly increase factors to a flat 5% per month for all categories
+  // Update the monthly increase factors to a flat 1.5% per month for all categories
   const MONTHLY_INCREASE = {
-    fuel: 1.05, // 5% increase per month for fuel
-    maintenance: 1.05, // 5% increase per month for maintenance
-    tax: 1.05, // 5% increase per month for tax
-    insurance: 1.05 // 5% increase per month for insurance
+    fuel: 1.015, // 1.5% increase per month for fuel
+    maintenance: 1.015, // 1.5% increase per month for maintenance
+    tax: 1.015, // 1.5% increase per month for tax
+    insurance: 1.015 // 1.5% increase per month for insurance
   };
 
   // Update the generateTimeSeriesData function to accept a custom period
@@ -1077,13 +1090,24 @@ const ListingDetailPage = () => {
 
   const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ data }) => {
     const svgRef = React.useRef<SVGSVGElement | null>(null);
+    const containerRef = React.useRef<HTMLDivElement | null>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     
     useEffect(() => {
-      if (svgRef.current) {
-        const { width, height } = svgRef.current.getBoundingClientRect();
-        setDimensions({ width, height });
-      }
+      const updateDimensions = () => {
+        if (containerRef.current) {
+          const { width } = containerRef.current.getBoundingClientRect();
+          // Fixed height for consistent visualization
+          setDimensions({ width, height: 300 });
+        }
+      };
+      
+      updateDimensions();
+      window.addEventListener('resize', updateDimensions);
+      
+      return () => {
+        window.removeEventListener('resize', updateDimensions);
+      };
     }, []);
     
     // Define margin for the graph
@@ -1094,14 +1118,16 @@ const ListingDetailPage = () => {
     // Skip rendering if dimensions are not available yet
     if (width <= 0 || height <= 0) {
       return (
-        <div style={{ width: '100%', height: '100%' }}>
+        <div ref={containerRef} style={{ width: '100%', height: '300px' }}>
           <svg ref={svgRef} width="100%" height="100%" />
         </div>
       );
     }
     
-    // Define scales
-    const xScale = (x: number) => (x - 1) * (width / 11); // 12 months (0-11)
+    // Dynamically calculate x-scale based on number of months
+    const monthCount = data.length;
+    const xScale = (x: number) => ((x - 1) / (monthCount - 1)) * width;
+    
     const yMax = Math.max(...data.map(d => d.total)) * 1.1; // Add 10% margin
     const yScale = (y: number) => height - (y / yMax) * height;
     
@@ -1114,7 +1140,6 @@ const ListingDetailPage = () => {
       return 6; // Every 6 months for longer periods
     };
     
-    const monthCount = data.length;
     const xTickInterval = getXTickInterval(monthCount);
     
     // X-axis ticks (months) with dynamic intervals
@@ -1174,22 +1199,23 @@ const ListingDetailPage = () => {
       return stacked;
     });
     
-    // Generate area paths
+    // Generate area paths - ensure all points are within bounds
     const areaPaths = categories.map(cat => {
       const key = cat.key;
       const points: [number, number][] = [];
       
       // Add points from left to right
       stackedData.forEach(d => {
-        points.push([xScale(d.month) + margin.left, yScale(d[`${key}End`]) + margin.top]);
+        const x = Math.min(Math.max(xScale(d.month) + margin.left, margin.left), width + margin.left);
+        const y = Math.min(Math.max(yScale(d[`${key}End`]) + margin.top, margin.top), height + margin.top);
+        points.push([x, y]);
       });
       
       // Add points from right to left (bottom part of the area)
       for (let i = stackedData.length - 1; i >= 0; i--) {
-        points.push([
-          xScale(stackedData[i].month) + margin.left, 
-          yScale(stackedData[i][`${key}Start`]) + margin.top
-        ]);
+        const x = Math.min(Math.max(xScale(stackedData[i].month) + margin.left, margin.left), width + margin.left);
+        const y = Math.min(Math.max(yScale(stackedData[i][`${key}Start`]) + margin.top, margin.top), height + margin.top);
+        points.push([x, y]);
       }
       
       // Generate SVG path
@@ -1228,68 +1254,19 @@ const ListingDetailPage = () => {
       );
     }
     
-    // First, add the monthly total line to show acceleration
+    // Monthly totals points - ensure points stay within bounds
     const monthlyTotalsPoints: [number, number][] = data.map((point, i) => {
-      return [
-        xScale(point.month) + margin.left, 
-        yScale(point.monthly.total) + margin.top
-      ];
+      const x = Math.min(Math.max(xScale(point.month) + margin.left, margin.left), width + margin.left);
+      const y = Math.min(Math.max(yScale(point.monthly.total) + margin.top, margin.top), height + margin.top);
+      return [x, y];
     });
 
     // Generate the monthly totals line path
     const monthlyTotalsPath = monthlyTotalsPoints
       .map((point, i) => `${i === 0 ? 'M' : 'L'} ${point[0]},${point[1]}`)
       .join(' ');
-
-    // Add previous vs current month indicators to show acceleration
-    // Add this in the render part of the StackedAreaChart SVG
-    // Add this after the stacked area paths
-    {/* Add monthly cost line to show acceleration trend */}
-    <path
-      d={monthlyTotalsPath}
-      fill="none"
-      stroke="#FF5252"
-      strokeWidth="2"
-      strokeDasharray="3,3"
-      strokeLinecap="round"
-    />
-
-    // Add month-over-month cost indicators
-    {data.slice(1).map((point, i) => {
-      const currentMonth = point.month;
-      const prevMonth = currentMonth - 1;
-      const currentCost = point.monthly.total;
-      const prevCost = data[i].monthly.total;
-      const increase = ((currentCost - prevCost) / prevCost * 100).toFixed(1);
-      
-      // Only show every other month for clarity
-      if (currentMonth % 3 !== 0) return null;
-      
-      return (
-        <g key={`increase-${currentMonth}`}>
-          <line
-            x1={xScale(prevMonth) + margin.left}
-            y1={yScale(prevCost) + margin.top}
-            x2={xScale(currentMonth) + margin.left}
-            y2={yScale(currentCost) + margin.top}
-            stroke="#FF5252"
-            strokeWidth="2"
-          />
-          <text
-            x={xScale(currentMonth - 0.5) + margin.left}
-            y={yScale((prevCost + currentCost) / 2) + margin.top - 8}
-            fontSize="10"
-            fill="#FF5252"
-            textAnchor="middle"
-          >
-            +{increase}%
-          </text>
-        </g>
-      );
-    })}
-
-    // Update the legend to include the monthly cost increase line
-    // Modify the legend section
+    
+    // Generate the legend
     const legend = (
       <g transform={`translate(${margin.left + 20}, ${margin.top})`}>
         <text x="0" y="-10" fontSize="12" fontWeight="500" fill={colors.text.secondary}>
@@ -1309,8 +1286,15 @@ const ListingDetailPage = () => {
     );
     
     return (
-      <div style={{ width: '100%', height: '100%' }}>
-        <svg ref={svgRef} width="100%" height="100%">
+      <div ref={containerRef} style={{ width: '100%', height: '300px', position: 'relative' }}>
+        <svg 
+          ref={svgRef} 
+          width="100%" 
+          height="100%" 
+          style={{ overflow: 'visible' }}
+          viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
           {/* X-axis */}
           <line
             x1={margin.left}
@@ -1368,6 +1352,59 @@ const ListingDetailPage = () => {
               strokeWidth="1"
             />
           ))}
+          
+          {/* Add monthly cost trend line */}
+          <path
+            d={monthlyTotalsPath}
+            fill="none"
+            stroke="#FF5252"
+            strokeWidth="2"
+            strokeDasharray="3,3"
+            strokeLinecap="round"
+          />
+          
+          {/* Add month-over-month cost indicators with bounds checking */}
+          {data.slice(1).map((point, i) => {
+            const currentMonth = point.month;
+            const prevMonth = currentMonth - 1;
+            const currentCost = point.monthly.total;
+            const prevCost = data[i].monthly.total;
+            const increase = ((currentCost - prevCost) / prevCost * 100).toFixed(1);
+            
+            // Only show indicators at reasonable intervals based on total months
+            const interval = Math.max(1, Math.floor(monthCount / 4));
+            if (currentMonth % interval !== 0 && currentMonth !== monthCount) return null;
+            
+            // Calculate positions with bounds checking
+            const x1 = Math.min(Math.max(xScale(prevMonth) + margin.left, margin.left), width + margin.left);
+            const y1 = Math.min(Math.max(yScale(prevCost) + margin.top, margin.top), height + margin.top);
+            const x2 = Math.min(Math.max(xScale(currentMonth) + margin.left, margin.left), width + margin.left);
+            const y2 = Math.min(Math.max(yScale(currentCost) + margin.top, margin.top), height + margin.top);
+            const labelX = Math.min(Math.max(xScale(currentMonth - 0.5) + margin.left, margin.left + 20), width + margin.left - 20);
+            const labelY = Math.min(Math.max(yScale((prevCost + currentCost) / 2) + margin.top - 8, margin.top + 10), height + margin.top - 10);
+            
+            return (
+              <g key={`increase-${currentMonth}`}>
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#FF5252"
+                  strokeWidth="2"
+                />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  fontSize="10"
+                  fill="#FF5252"
+                  textAnchor="middle"
+                >
+                  +{increase}%
+                </text>
+              </g>
+            );
+          })}
           
           {/* Legend */}
           {legend}
@@ -1964,7 +2001,7 @@ const ListingDetailPage = () => {
                     ) : (
                       <CostAreaChart>
                         <h4 style={{ marginBottom: spacing[3], textAlign: 'center' }}>
-                          Cumulative Cost Over {forecastPeriod} Months (with 5% Monthly Increase)
+                          Cumulative Cost Over {forecastPeriod} Months (with 1.5% Monthly Increase)
                         </h4>
                         
                         <SliderContainer>
