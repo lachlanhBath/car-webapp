@@ -698,6 +698,7 @@ const PurchaseSummary = styled.div`
   white-space: pre-line;
   color: ${colors.text.primary};
   font-size: ${typography.fontSize.base};
+`;
 
 // Add missing styled components for MOT details
 const MOTAdvisoriesTitle = styled.h4`
