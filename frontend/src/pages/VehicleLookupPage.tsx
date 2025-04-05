@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
 import { colors, spacing, typography, shadows } from '../styles/styleGuide';
@@ -35,8 +35,8 @@ interface MOTHistory {
   expiry_date: string;
   odometer: number;
   result: string;
-  advisory_notes: string;
-  failure_reasons: string | null;
+  advisory_notes: string[] | string;
+  failure_reasons: string[] | string | null;
 }
 
 // Styled components
@@ -332,55 +332,76 @@ const ErrorState = styled.div`
 // Main component
 const VehicleLookupPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { apiClient } = useApi();
-  const [registration, setRegistration] = useState(searchParams.get('registration') || '');
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const { vehicles } = useApi();
+  const { id } = useParams<{ id: string }>();
+  const registrationParam = searchParams.get('registration');
+  
+  const [registration, setRegistration] = useState(registrationParam || '');
+  const [vehicleData, setVehicleData] = useState<Vehicle | null>(null);
   const [motHistory, setMotHistory] = useState<MOTHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formSubmitted, setFormSubmitted] = useState(false);
-
-  // Check if we have a registration in URL params and do the search
+  
   useEffect(() => {
-    const registrationParam = searchParams.get('registration');
-    if (registrationParam) {
-      setRegistration(registrationParam);
+    // If we have an ID parameter, fetch the vehicle details
+    if (id) {
+      setLoading(true);
+      setError(null);
+      
+      vehicles.getVehicleById(id)
+        .then(response => {
+          if (response.data && response.data.vehicle) {
+            setVehicleData(response.data.vehicle);
+            return vehicles.getVehicleMOTHistory(id);
+          } else {
+            throw new Error('Vehicle not found');
+          }
+        })
+        .then(response => {
+          if (response.data && response.data.mot_histories) {
+            setMotHistory(response.data.mot_histories);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching vehicle details:', err);
+          setError('Failed to load vehicle details. Please try again later.');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+    // If we have a registration parameter, look up the vehicle
+    else if (registrationParam) {
       lookupVehicle(registrationParam);
     }
-  }, [searchParams]);
-
+  }, [id, registrationParam, vehicles]);
+  
   const lookupVehicle = (reg: string) => {
     setLoading(true);
-    setFormSubmitted(true);
     setError(null);
     
-    try {
-      // Call the mock API to lookup vehicle
-      const response = apiClient.lookupVehicleByRegistration(reg);
-      
-      if (response.status === 'success' && response.data.vehicle) {
-        const vehicleData = response.data.vehicle;
-        setVehicle(vehicleData);
-        
-        // Fetch MOT history for the vehicle
-        if (vehicleData.id) {
-          const motResponse = apiClient.getVehicleMOTHistory(vehicleData.id);
-          if (motResponse.status === 'success') {
-            setMotHistory(motResponse.data.mot_histories);
-          }
+    // Lookup vehicle data
+    vehicles.lookupVehicleByRegistration(reg)
+      .then(response => {
+        if (response.data && response.data.vehicle) {
+          setVehicleData(response.data.vehicle);
+          return vehicles.getVehicleMOTHistory(response.data.vehicle.id);
+        } else {
+          throw new Error('Vehicle not found');
         }
-      } else {
-        setError('Vehicle not found. Please check the registration number and try again.');
-        setVehicle(null);
-        setMotHistory([]);
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-      setVehicle(null);
-      setMotHistory([]);
-    } finally {
-      setLoading(false);
-    }
+      })
+      .then(response => {
+        if (response.data && response.data.mot_histories) {
+          setMotHistory(response.data.mot_histories);
+        }
+      })
+      .catch(err => {
+        console.error('Error looking up vehicle:', err);
+        setError('Failed to find vehicle information for this registration number. Please check the registration and try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -465,13 +486,13 @@ const VehicleLookupPage: React.FC = () => {
           <h2>Vehicle Not Found</h2>
           <p>{error}</p>
         </ErrorState>
-      ) : vehicle ? (
+      ) : vehicleData ? (
         <ResultsContainer>
           <VehicleCard>
             <VehicleHeader>
               <div>
-                <VehicleTitle>{vehicle.make} {vehicle.model} {vehicle.variant}</VehicleTitle>
-                <VehicleSubtitle>Registration: {vehicle.registration}</VehicleSubtitle>
+                <VehicleTitle>{vehicleData.make} {vehicleData.model} {vehicleData.variant}</VehicleTitle>
+                <VehicleSubtitle>Registration: {vehicleData.registration}</VehicleSubtitle>
               </div>
               <Button as={Link} to="/listings" variant="secondary">
                 Find similar vehicles
@@ -479,20 +500,20 @@ const VehicleLookupPage: React.FC = () => {
             </VehicleHeader>
             
             <StatusSection>
-              <StatusCard $status={getTaxStatus(vehicle.tax_status, vehicle.tax_due_date)}>
+              <StatusCard $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
                 <StatusTitle>Tax Status</StatusTitle>
-                <StatusValue $status={getTaxStatus(vehicle.tax_status, vehicle.tax_due_date)}>
-                  {vehicle.tax_status}
+                <StatusValue $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
+                  {vehicleData.tax_status}
                 </StatusValue>
-                <DetailLabel>Due: {formatDate(vehicle.tax_due_date)}</DetailLabel>
+                <DetailLabel>Due: {formatDate(vehicleData.tax_due_date)}</DetailLabel>
               </StatusCard>
               
-              <StatusCard $status={getMotStatus(vehicle.mot_status, vehicle.mot_expiry_date)}>
+              <StatusCard $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
                 <StatusTitle>MOT Status</StatusTitle>
-                <StatusValue $status={getMotStatus(vehicle.mot_status, vehicle.mot_expiry_date)}>
-                  {vehicle.mot_status}
+                <StatusValue $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
+                  {vehicleData.mot_status}
                 </StatusValue>
-                <DetailLabel>Expires: {formatDate(vehicle.mot_expiry_date)}</DetailLabel>
+                <DetailLabel>Expires: {formatDate(vehicleData.mot_expiry_date)}</DetailLabel>
               </StatusCard>
             </StatusSection>
           </VehicleCard>
@@ -503,57 +524,57 @@ const VehicleLookupPage: React.FC = () => {
               <DetailSection>
                 <DetailItem>
                   <DetailLabel>Make</DetailLabel>
-                  <DetailValue>{vehicle.make}</DetailValue>
+                  <DetailValue>{vehicleData.make}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Model</DetailLabel>
-                  <DetailValue>{vehicle.model}</DetailValue>
+                  <DetailValue>{vehicleData.model}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Variant</DetailLabel>
-                  <DetailValue>{vehicle.variant}</DetailValue>
+                  <DetailValue>{vehicleData.variant}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Year</DetailLabel>
-                  <DetailValue>{vehicle.year}</DetailValue>
+                  <DetailValue>{vehicleData.year}</DetailValue>
                 </DetailItem>
               </DetailSection>
               
               <DetailSection>
                 <DetailItem>
                   <DetailLabel>Fuel Type</DetailLabel>
-                  <DetailValue>{vehicle.fuel_type}</DetailValue>
+                  <DetailValue>{vehicleData.fuel_type}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Transmission</DetailLabel>
-                  <DetailValue>{vehicle.transmission}</DetailValue>
+                  <DetailValue>{vehicleData.transmission}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Engine Size</DetailLabel>
-                  <DetailValue>{vehicle.engine_size}</DetailValue>
+                  <DetailValue>{vehicleData.engine_size}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Body Type</DetailLabel>
-                  <DetailValue>{vehicle.body_type}</DetailValue>
+                  <DetailValue>{vehicleData.body_type}</DetailValue>
                 </DetailItem>
               </DetailSection>
               
               <DetailSection>
                 <DetailItem>
                   <DetailLabel>Color</DetailLabel>
-                  <DetailValue>{vehicle.color}</DetailValue>
+                  <DetailValue>{vehicleData.color}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Doors</DetailLabel>
-                  <DetailValue>{vehicle.doors}</DetailValue>
+                  <DetailValue>{vehicleData.doors}</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Mileage</DetailLabel>
-                  <DetailValue>{vehicle.mileage.toLocaleString()} miles</DetailValue>
+                  <DetailValue>{vehicleData.mileage.toLocaleString()} miles</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>VIN</DetailLabel>
-                  <DetailValue>{vehicle.vin}</DetailValue>
+                  <DetailValue>{vehicleData.vin}</DetailValue>
                 </DetailItem>
               </DetailSection>
             </DetailGrid>
@@ -579,7 +600,13 @@ const VehicleLookupPage: React.FC = () => {
                         <AdvisorySection>
                           <AdvisoryTitle>Failure Reason(s):</AdvisoryTitle>
                           <AdvisoryList>
-                            <FailureItem>{test.failure_reasons}</FailureItem>
+                            {Array.isArray(test.failure_reasons) ? (
+                              test.failure_reasons.map((reason, index) => (
+                                <FailureItem key={`${test.id}-${index}`}>{reason}</FailureItem>
+                              ))
+                            ) : (
+                              <FailureItem>{test.failure_reasons}</FailureItem>
+                            )}
                           </AdvisoryList>
                         </AdvisorySection>
                       )}
@@ -588,7 +615,13 @@ const VehicleLookupPage: React.FC = () => {
                         <AdvisorySection>
                           <AdvisoryTitle>Advisory Notes:</AdvisoryTitle>
                           <AdvisoryList>
-                            <AdvisoryItem>{test.advisory_notes}</AdvisoryItem>
+                            {Array.isArray(test.advisory_notes) ? (
+                              test.advisory_notes.map((note, index) => (
+                                <AdvisoryItem key={`${test.id}-${index}`}>{note}</AdvisoryItem>
+                              ))
+                            ) : (
+                              <AdvisoryItem>{test.advisory_notes}</AdvisoryItem>
+                            )}
                           </AdvisoryList>
                         </AdvisorySection>
                       )}
@@ -603,15 +636,10 @@ const VehicleLookupPage: React.FC = () => {
             )}
           </MOTHistoryCard>
         </ResultsContainer>
-      ) : formSubmitted ? (
-        <EmptyState>
-          <h2>No vehicle data</h2>
-          <p>No vehicle information is available.</p>
-        </EmptyState>
       ) : (
         <EmptyState>
-          <h2>Enter a registration number</h2>
-          <p>Enter a UK vehicle registration number above to view its details and MOT history.</p>
+          <h2>Enter a Registration Number</h2>
+          <p>Enter a UK vehicle registration number to view its details and MOT history.</p>
         </EmptyState>
       )}
     </PageContainer>

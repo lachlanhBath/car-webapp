@@ -21,6 +21,9 @@ Rails.application.routes.draw do
       # Vehicles
       resources :vehicles, only: [:show] do
         resources :mot_histories, only: [:index]
+        collection do
+          post :lookup
+        end
       end
 
       # MOT Histories

@@ -8,16 +8,29 @@ import Card from '../components/UI/Card';
 import Input from '../components/UI/Input';
 
 // Types
-interface Listing {
+interface Vehicle {
   id: string;
-  title: string;
-  price: number;
-  vehicle: {
-    make: string;
-    model: string;
-    year: number;
+  make: string;
+  model: string;
+  year: number;
+  fuel_type: string;
+  transmission: string;
+  engine_size?: string;
+  body_type?: string;
+  doors?: number;
+  color?: string;
+  mileage?: number;
+  registration: string;
+  vin?: string;
+  mot_status?: string;
+  mot_expiry_date?: string;
+  listing?: {
+    id: string;
+    title: string;
+    price: number;
+    source_url: string;
+    image_urls?: string[];
   };
-  image_urls: string[];
 }
 
 // Styled components
@@ -271,32 +284,55 @@ const CTAButtons = styled.div`
 `;
 
 const HomePage: React.FC = () => {
-  const { apiClient } = useApi();
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
-  const [registrationNumber, setRegistrationNumber] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { vehicles: vehiclesApi, listings: listingsApi } = useApi();
+  const [registration, setRegistration] = useState('');
+  const [featuredVehicles, setFeaturedVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch featured listings on component mount
-    const response = apiClient.getListings({ 
-      page: 1, 
-      per_page: 3,
-      sort_by: 'price',
-      sort_order: 'desc'
-    });
-    
-    if (response.status === 'success') {
-      setFeaturedListings(response.data.listings);
-    }
-  }, [apiClient]);
+    // Fetch featured vehicles
+    setLoading(true);
+    listingsApi.getListings({ per_page: 6 })
+      .then(response => {
+        if (response.data && response.listings) {
+          // Extract vehicles from listings based on the actual API response format
+          const vehicles = response.listings.map((listing: any) => {
+            return {
+              id: `vehicle-${listing.id}`,
+              make: listing.vehicle.make || 'Unknown',
+              model: listing.vehicle.model || listing.title.replace(listing.vehicle.make, '').trim(),
+              year: listing.vehicle.year || new Date().getFullYear(),
+              fuel_type: listing.vehicle.fuel_type || '',
+              transmission: listing.vehicle.transmission || '',
+              registration: '',
+              listing: {
+                id: listing.id,
+                title: listing.title,
+                price: parseFloat(listing.price),
+                source_url: '',
+                image_urls: listing.image_urls
+              }
+            };
+          });
+          
+          setFeaturedVehicles(vehicles);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching featured vehicles:', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [listingsApi]);
 
   const handleRegistrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRegistrationNumber(e.target.value);
+    setRegistration(e.target.value);
   };
 
   const handleRegistrationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registrationNumber.trim()) return;
+    if (!registration.trim()) return;
     
     setLoading(true);
     
@@ -304,7 +340,7 @@ const HomePage: React.FC = () => {
     setTimeout(() => {
       setLoading(false);
       // Navigate programmatically to the vehicle lookup results page
-      window.location.href = `/vehicle-lookup?registration=${registrationNumber}`;
+      window.location.href = `/vehicle-lookup?registration=${registration}`;
     }, 1000);
   };
 
@@ -324,7 +360,7 @@ const HomePage: React.FC = () => {
         <HeroContent>
           <HeroTitle>Find Your Vehicle's History</HeroTitle>
           <HeroSubtitle>
-            Get instant access to MOT history, tax status, and explore our vehicle listings
+            Get instant access to MOT history, tax status, and explore our vehicle database
           </HeroSubtitle>
           
           <SearchBox>
@@ -332,14 +368,14 @@ const HomePage: React.FC = () => {
             <SearchForm onSubmit={handleRegistrationSubmit}>
               <Input
                 placeholder="Enter registration (e.g. AB12CDE)"
-                value={registrationNumber}
+                value={registration}
                 onChange={handleRegistrationChange}
                 fullWidth
               />
               <Button 
                 type="submit" 
                 size="large" 
-                disabled={!registrationNumber.trim() || loading}
+                disabled={!registration.trim() || loading}
                 isLoading={loading}
               >
                 Search
@@ -352,17 +388,18 @@ const HomePage: React.FC = () => {
       <Section>
         <SectionTitle>Featured Vehicles</SectionTitle>
         <FeaturedListings>
-          {featuredListings.map(listing => (
-            <ListingCard key={listing.id}>
-              <ListingImage style={{ backgroundImage: `url(${listing.image_urls[0]})` }} />
+          {featuredVehicles.map(vehicle => (
+            <ListingCard key={vehicle.id}>
+              <ListingImage style={{ backgroundImage: `url(${vehicle.listing?.image_urls?.[0] || ''})` }} />
               <ListingContent>
-                <ListingPrice>{formatPrice(listing.price)}</ListingPrice>
-                <ListingTitle>{listing.title}</ListingTitle>
+                {vehicle.listing && <ListingPrice>{formatPrice(vehicle.listing.price)}</ListingPrice>}
+                <ListingTitle>{vehicle.make} {vehicle.model}</ListingTitle>
                 <ListingDetail>
-                  {listing.vehicle.year} • {listing.vehicle.make} • {listing.vehicle.model}
+                  {vehicle.year} • {vehicle.fuel_type} • {vehicle.transmission}
+                  {vehicle.mileage && ` • ${vehicle.mileage.toLocaleString()} miles`}
                 </ListingDetail>
-                <Button as={Link} to={`/listings/${listing.id}`} fullWidth>
-                  View Details
+                <Button as={Link} to={`/vehicles/${vehicle.id}`} fullWidth>
+                  View Vehicle Details
                 </Button>
               </ListingContent>
             </ListingCard>
@@ -370,8 +407,8 @@ const HomePage: React.FC = () => {
         </FeaturedListings>
         
         <ButtonContainer>
-          <Button as={Link} to="/listings" variant="secondary" size="large">
-            View All Listings
+          <Button as={Link} to="/vehicle-lookup" variant="secondary" size="large">
+            Find Your Vehicle
           </Button>
         </ButtonContainer>
       </Section>
@@ -421,14 +458,11 @@ const HomePage: React.FC = () => {
         <CTAContent>
           <CTATitle>Ready to discover your vehicle's history?</CTATitle>
           <CTAText>
-            Get started today with our easy-to-use vehicle lookup service or browse our extensive listings.
+            Get started today with our easy-to-use vehicle lookup service.
           </CTAText>
           <CTAButtons>
             <Button as={Link} to="/vehicle-lookup" size="large">
               Vehicle Lookup
-            </Button>
-            <Button as={Link} to="/listings" variant="secondary" size="large">
-              Browse Listings
             </Button>
           </CTAButtons>
         </CTAContent>

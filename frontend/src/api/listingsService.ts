@@ -17,7 +17,8 @@ export interface ListingsParams {
 
 export const listingsService = {
   getListings: async (params: ListingsParams = {}) => {
-    return apiClient.get('/listings', { params });
+    const response = await apiClient.get('/listings', { params });
+    return response;
   },
   
   getListingById: async (id: string) => {
