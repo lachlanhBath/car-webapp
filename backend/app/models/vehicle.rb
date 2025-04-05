@@ -12,7 +12,8 @@ class Vehicle < ApplicationRecord
   scope :by_model, ->(model) { where('model ILIKE ?', model) if model.present? }
   scope :year_range, ->(min, max) { where(year: min..max) if min.present? && max.present? }
   
+  # Methods
   def full_name
-    "#{year} #{make} #{model}".strip
+    [year, make, model].compact.join(' ')
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_04_05_132813) do
+ActiveRecord::Schema[7.2].define(version: 2025_04_05_145618) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -74,6 +74,15 @@ ActiveRecord::Schema[7.2].define(version: 2025_04_05_132813) do
     t.string "vin"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "registration_confidence"
+    t.string "registration_source"
+    t.string "registration_image_url"
+    t.text "dvla_data"
+    t.integer "co2_emissions"
+    t.string "tax_status"
+    t.date "tax_due_date"
+    t.string "mot_status"
+    t.date "mot_expiry_date"
     t.index ["listing_id"], name: "index_vehicles_on_listing_id"
     t.index ["make", "model"], name: "index_vehicles_on_make_and_model"
     t.index ["registration"], name: "index_vehicles_on_registration"

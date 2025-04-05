@@ -1,6 +1,7 @@
 class Listing < ApplicationRecord
   has_one :vehicle, dependent: :destroy
   
+  validates :source_id, presence: true, uniqueness: true
   validates :source_url, presence: true
   validates :price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :status, inclusion: { in: %w[active sold expired] }
@@ -8,6 +9,13 @@ class Listing < ApplicationRecord
   scope :active, -> { where(status: 'active') }
   scope :recent, -> { order(post_date: :desc) }
   scope :price_range, ->(min, max) { where(price: min..max) if min.present? && max.present? }
+  
+  serialize :image_urls, Array
+  serialize :specs, Array
+
+  # Enqueue license plate extraction after a listing is created or updated
+  after_commit :enqueue_license_plate_extraction, on: :create
+  after_commit :enqueue_license_plate_extraction, on: :update
   
   # Handle array of specs from raw data
   def specs
@@ -52,5 +60,14 @@ class Listing < ApplicationRecord
     end
     
     listings
+  end
+  
+  private
+  
+  def enqueue_license_plate_extraction
+    # Only enqueue if there are image URLs to process and the listing is active
+    if image_urls.present? && status == 'active'
+      ProcessListingImagesJob.perform_later(id)
+    end
   end
 end
