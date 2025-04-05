@@ -10,7 +10,7 @@ This document details the backend architecture for our car listing application. 
 - **PostgreSQL**: Primary data store
 - **Redis**: Caching and Sidekiq queue management
 - **Sidekiq**: Background job processing
-- **RSpec**: Testing framework
+- **Minitest**: Testing framework
 
 ## Application Structure
 
@@ -59,7 +59,7 @@ backend/
 ├── db/
 │   ├── migrate/
 │   └── schema.rb
-└── spec/
+└── test/
     ├── models/
     ├── controllers/
     ├── services/
@@ -180,7 +180,7 @@ Redis is used for caching to improve performance:
 
 ## Testing Strategy
 
-- Unit tests for models and services
+- Unit tests for models and services with Minitest
 - Integration tests for API endpoints
 - Job testing with Sidekiq test helpers
 - Mocked external services
