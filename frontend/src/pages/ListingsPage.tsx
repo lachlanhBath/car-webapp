@@ -6,6 +6,7 @@ import { colors, spacing, typography } from '../styles/styleGuide';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
+import Select from '../components/UI/Select';
 
 // Types for our data
 interface VehicleSummary {
@@ -44,6 +45,25 @@ interface ListingsResponse {
     total_count: number;
   };
 }
+
+// Constants for filter options
+const FUEL_TYPES = [
+  { value: '', label: 'Any fuel type' },
+  { value: 'petrol', label: 'Petrol' },
+  { value: 'diesel', label: 'Diesel' },
+  { value: 'electric', label: 'Electric' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'plugin_hybrid', label: 'Plug-in Hybrid' },
+  { value: 'lpg', label: 'LPG' }
+];
+
+const TRANSMISSION_TYPES = [
+  { value: '', label: 'Any transmission' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'automatic', label: 'Automatic' },
+  { value: 'semi_automatic', label: 'Semi-Automatic' },
+  { value: 'cvt', label: 'CVT' }
+];
 
 // Styled components
 const PageContainer = styled.div`
@@ -439,6 +459,30 @@ const ExpectedLifetimeBadge = styled.div`
   }
 `;
 
+// Add a styled component for suggested searches
+const SuggestedSearches = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${spacing[2]};
+  margin-bottom: ${spacing[4]};
+`;
+
+const SuggestedSearch = styled.button`
+  background-color: ${colors.dark.surface};
+  border: 1px solid ${colors.dark.border};
+  border-radius: 20px;
+  padding: ${spacing[1]} ${spacing[3]};
+  font-size: ${typography.fontSize.sm};
+  color: ${colors.text.primary};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${colors.primary.main}20;
+    border-color: ${colors.primary.main};
+  }
+`;
+
 // Main component
 const ListingsPage: React.FC = () => {
   const { listings: listingsApi } = useApi();
@@ -450,6 +494,8 @@ const ListingsPage: React.FC = () => {
     perPage: 20
   });
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [activeFilters, setActiveFilters] = useState(0);
   const [filters, setFilters] = useState({
     make: '',
     model: '',
@@ -465,6 +511,15 @@ const ListingsPage: React.FC = () => {
     fetchListings();
   }, [pagination.currentPage]);
 
+  useEffect(() => {
+    // Count active filters for badge display
+    let count = 0;
+    Object.values(filters).forEach(value => {
+      if (value) count++;
+    });
+    setActiveFilters(count);
+  }, [filters]);
+
   const fetchListings = () => {
     setLoading(true);
     
@@ -474,7 +529,7 @@ const ListingsPage: React.FC = () => {
       per_page: pagination.perPage
     };
     
-    // Add filters if they have values
+    // Add filters if they have values - map form field names to API parameter names
     if (filters.make) params.make = filters.make;
     if (filters.model) params.model = filters.model;
     if (filters.minPrice) params.min_price = Number(filters.minPrice);
@@ -483,6 +538,8 @@ const ListingsPage: React.FC = () => {
     if (filters.yearTo) params.year_to = Number(filters.yearTo);
     if (filters.fuelType) params.fuel_type = filters.fuelType;
     if (filters.transmission) params.transmission = filters.transmission;
+    
+    console.log('Fetching listings with params:', params);
     
     listingsApi.getListings(params)
       .then((response) => {
@@ -524,6 +581,7 @@ const ListingsPage: React.FC = () => {
       })
       .finally(() => {
         setLoading(false);
+        setFilterLoading(false);
       });
   };
 
@@ -533,11 +591,15 @@ const ListingsPage: React.FC = () => {
   };
 
   const handleApplyFilters = () => {
+    // Show loading state for filter operation
+    setFilterLoading(true);
+    // Reset to first page when applying new filters
     setPagination(prev => ({ ...prev, currentPage: 1 }));
     fetchListings();
   };
 
   const handleResetFilters = () => {
+    setFilterLoading(true);
     setFilters({
       make: '',
       model: '',
@@ -548,8 +610,11 @@ const ListingsPage: React.FC = () => {
       fuelType: '',
       transmission: ''
     });
+    
+    // Reset to first page and fetch listings with empty filters
     setPagination(prev => ({ ...prev, currentPage: 1 }));
-    setTimeout(() => fetchListings(), 0);
+    // Use setTimeout to ensure state updates before fetching
+    setTimeout(fetchListings, 0);
   };
 
   const handlePageChange = (page: number) => {
@@ -633,10 +698,73 @@ const ListingsPage: React.FC = () => {
     return buttons;
   };
 
+  // Add a function to apply predefined filters
+  const applyPredefinedFilter = (newFilterValues: Partial<typeof filters>) => {
+    // Set loading state
+    setFilterLoading(true);
+    
+    // Apply new filter values while keeping any other existing filters
+    setFilters(prev => ({
+      ...prev,
+      ...newFilterValues
+    }));
+    
+    // Reset to first page
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    
+    // Use setTimeout to ensure state updates before fetching
+    setTimeout(fetchListings, 0);
+  };
+
   return (
     <PageContainer>
       <PageHeader>
-        <Title>Vehicle Listings</Title>
+        <Title>
+          Vehicle Listings
+          {activeFilters > 0 && (
+            <span style={{ 
+              marginLeft: spacing[3], 
+              fontSize: typography.fontSize.lg,
+              color: colors.primary.main,
+              backgroundColor: `${colors.primary.main}20`,
+              padding: `${spacing[1]} ${spacing[3]}`,
+              borderRadius: '16px',
+            }}>
+              {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'} active
+            </span>
+          )}
+        </Title>
+        
+        <SuggestedSearches>
+          <SuggestedSearch onClick={() => applyPredefinedFilter({
+            make: 'BMW',
+            minPrice: '10000',
+            maxPrice: '30000'
+          })}>
+            BMW £10k-£30k
+          </SuggestedSearch>
+          <SuggestedSearch onClick={() => applyPredefinedFilter({
+            fuelType: 'electric'
+          })}>
+            Electric Vehicles
+          </SuggestedSearch>
+          <SuggestedSearch onClick={() => applyPredefinedFilter({
+            minPrice: '',
+            maxPrice: '5000'
+          })}>
+            Under £5,000
+          </SuggestedSearch>
+          <SuggestedSearch onClick={() => applyPredefinedFilter({
+            yearFrom: '2020'
+          })}>
+            2020 or newer
+          </SuggestedSearch>
+          <SuggestedSearch onClick={() => applyPredefinedFilter({
+            transmission: 'automatic'
+          })}>
+            Automatic
+          </SuggestedSearch>
+        </SuggestedSearches>
         
         <FiltersContainer>
           <Input 
@@ -691,28 +819,35 @@ const ListingsPage: React.FC = () => {
             placeholder="To"
           />
           
-          <Input 
+          <Select
             label="Fuel Type"
             name="fuelType"
             value={filters.fuelType}
             onChange={handleFilterChange}
-            placeholder="Any fuel type"
+            options={FUEL_TYPES}
           />
           
-          <Input 
+          <Select
             label="Transmission"
             name="transmission"
             value={filters.transmission}
             onChange={handleFilterChange}
-            placeholder="Any transmission"
+            options={TRANSMISSION_TYPES}
           />
           
           <ActionButtons>
-            <Button variant="secondary" onClick={handleResetFilters}>
-              Reset
+            <Button 
+              variant="secondary" 
+              onClick={handleResetFilters}
+              disabled={filterLoading || activeFilters === 0}
+            >
+              Reset Filters
             </Button>
-            <Button onClick={handleApplyFilters}>
-              Apply Filters
+            <Button 
+              onClick={handleApplyFilters}
+              disabled={filterLoading}
+            >
+              {filterLoading ? 'Applying...' : 'Apply Filters'}
             </Button>
           </ActionButtons>
         </FiltersContainer>
