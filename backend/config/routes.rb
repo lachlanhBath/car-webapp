@@ -24,6 +24,9 @@ Rails.application.routes.draw do
         collection do
           post :lookup
         end
+        member do
+          post :operating_cost_estimate
+        end
       end
 
       # MOT Histories
