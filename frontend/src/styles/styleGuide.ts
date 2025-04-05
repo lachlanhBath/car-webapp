@@ -1,49 +1,49 @@
 // Style Guide for Bath-Hack 2025 Vehicle Service Application
-// A sleek, modern web app UI inspired by high-end automotive sites
+// A fresh, modern web app UI with a lime green and white theme
 
 // Color Palette
 export const colors = {
   // Primary colors
   primary: {
-    main: '#3A86FF', // Vibrant blue for primary actions and highlights
-    light: '#61A0FF',
-    dark: '#2A66CC',
+    main: '#32CD32', // Lime Green for primary actions and highlights
+    light: '#7CFF7C',
+    dark: '#228B22',
     contrast: '#FFFFFF'
   },
   // Secondary colors
   secondary: {
-    main: '#FF006E', // Vibrant accent for special elements
-    light: '#FF4B93',
-    dark: '#CC0058',
+    main: '#00AA55', // Darker green accent for special elements
+    light: '#33CC77',
+    dark: '#008844',
     contrast: '#FFFFFF'
   },
-  // Dark theme base colors
-  dark: {
-    background: '#121212', // Main background
-    surface: '#1E1E1E', // Cards, dialogs
-    border: '#2A2A2A',
-    divider: '#2F2F2F'
-  },
-  // Light theme alternatives
+  // Light theme base colors (now the default)
   light: {
-    background: '#F5F5F7', // Light gray background
-    surface: '#FFFFFF',
+    background: '#FFFFFF', // White background
+    surface: '#F9F9F9', // Off-white for cards, dialogs
     border: '#E0E0E0',
     divider: '#EEEEEE'
   },
+  // Dark theme alternatives (kept for reference but not used in the lime green, white, grey theme)
+  dark: {
+    background: '#FFFFFF', // Changed to white to match the new theme
+    surface: '#F9F9F9', // Changed to light grey
+    border: '#E0E0E0', // Light grey border
+    divider: '#EEEEEE' // Light grey divider
+  },
   // Text colors
   text: {
-    primary: '#FFFFFF',
-    secondary: '#AAAAAA',
-    disabled: '#666666',
-    hint: '#888888',
-    onLight: '#121212',
-    onLightSecondary: '#666666'
+    primary: '#212121', // Dark text for light theme
+    secondary: '#666666',
+    disabled: '#9E9E9E',
+    hint: '#757575',
+    onDark: '#FFFFFF', // For text on dark backgrounds
+    onDarkSecondary: '#CCCCCC'
   },
   // State colors
   state: {
-    success: '#00C853',
-    warning: '#FFD600',
+    success: '#32CD32', // Using lime green for success
+    warning: '#FFA500', // Orange
     error: '#FF3D00',
     info: '#00B0FF'
   },
@@ -154,9 +154,9 @@ export const shadows = {
   md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
   lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
   xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-  '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
   inner: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
-  outline: '0 0 0 3px rgba(58, 134, 255, 0.5)',
+  outline: '0 0 0 3px rgba(50, 205, 50, 0.4)',
   none: 'none',
   // Dark mode elevated surfaces
   dark: {
@@ -258,14 +258,14 @@ export const components = {
         color: colors.primary.main,
         border: `1px solid ${colors.primary.main}`,
         '&:hover': {
-          backgroundColor: 'rgba(58, 134, 255, 0.05)',
+          backgroundColor: 'rgba(50, 205, 50, 0.08)',
         },
       },
       tertiary: {
         backgroundColor: 'transparent',
         color: colors.text.primary,
         '&:hover': {
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'rgba(0, 0, 0, 0.05)',
         },
       },
     },
@@ -287,7 +287,7 @@ export const components = {
   },
   card: {
     base: {
-      backgroundColor: colors.dark.surface,
+      backgroundColor: colors.light.surface,
       borderRadius: borderRadius.lg,
       boxShadow: shadows.md,
       overflow: 'hidden',
@@ -297,7 +297,7 @@ export const components = {
         boxShadow: shadows.lg,
       },
       outlined: {
-        border: `1px solid ${colors.dark.border}`,
+        border: `1px solid ${colors.light.border}`,
         boxShadow: 'none',
       },
       flat: {
@@ -310,8 +310,8 @@ export const components = {
       fontSize: typography.fontSize.base,
       lineHeight: typography.lineHeight.normal,
       padding: `${spacing[3]} ${spacing[4]}`,
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      border: `1px solid ${colors.dark.border}`,
+      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+      border: `1px solid ${colors.light.border}`,
       borderRadius: borderRadius.md,
       color: colors.text.primary,
       '&:focus': {
@@ -323,7 +323,7 @@ export const components = {
         color: colors.text.hint,
       },
       '&:disabled': {
-        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        backgroundColor: 'rgba(0, 0, 0, 0.04)',
         color: colors.text.disabled,
         cursor: 'not-allowed',
       },
@@ -406,25 +406,18 @@ export const mixins = {
   },
   // Apply glass morphism effect
   glassMorphism: {
-    backgroundColor: 'rgba(30, 30, 30, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
     backdropFilter: 'blur(10px)',
-    border: `1px solid ${colors.dark.border}`,
+    border: `1px solid ${colors.light.border}`,
   },
 };
 
 // Default theme
 export const defaultTheme = {
-  colors,
-  typography,
-  spacing,
-  borderRadius,
-  shadows,
-  transitions,
-  zIndex,
-  breakpoints,
-  layout,
-  components,
-  mixins,
+  colors: colors.light,
+  textColors: colors.text,
+  primaryColor: colors.primary,
+  secondaryColor: colors.secondary,
 };
 
 export default {

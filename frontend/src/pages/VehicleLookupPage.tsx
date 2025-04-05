@@ -455,6 +455,91 @@ const VehicleLookupPage: React.FC = () => {
     }
   };
 
+  const fetchVehicleInfo = (registration: string) => {
+    setLoading(true);
+    setError(null);
+    
+    vehicles.lookupVehicleByRegistration(registration)
+      .then(response => {
+        console.log('Vehicle lookup response:', response);
+        
+        // Check if we have a valid vehicle response
+        if (response && response.vehicle) {
+          const vehicleData = response.vehicle;
+          
+          // Ensure vehicle has all necessary properties with fallbacks
+          const processedVehicle = {
+            ...vehicleData,
+            make: vehicleData.make || 'Unknown',
+            model: vehicleData.model || 'Unknown',
+            year: vehicleData.year || null,
+            fuel_type: vehicleData.fuel_type || 'Unknown',
+            transmission: vehicleData.transmission || 'Unknown',
+            engine_size: vehicleData.engine_size || null,
+            color: vehicleData.color || null,
+            body_type: vehicleData.body_type || null,
+            registration: vehicleData.registration || registration,
+            mileage: vehicleData.mileage || null,
+            tax_status: vehicleData.tax_status || 'Unknown',
+            tax_due_date: vehicleData.tax_due_date || null,
+            mot_status: vehicleData.mot_status || 'Unknown',
+            mot_expiry_date: vehicleData.mot_expiry_date || null
+          };
+          
+          setVehicleData(processedVehicle);
+          
+          // If the vehicle has an ID, fetch its MOT history
+          if (vehicleData.id) {
+            fetchMotHistory(vehicleData.id);
+          } else {
+            setMotHistory([]);
+          }
+        } else {
+          setError('No vehicle found with that registration');
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching vehicle data:', err);
+        setError('Error fetching vehicle data. Please try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+  
+  const fetchMotHistory = (vehicleId: string) => {
+    setLoading(true);
+    
+    vehicles.getVehicleMOTHistory(vehicleId)
+      .then(response => {
+        console.log('MOT history response:', response);
+        
+        if (response && response.mot_histories && Array.isArray(response.mot_histories)) {
+          // Ensure each MOT history entry has proper data structure
+          const processedHistory = response.mot_histories.map((entry: any) => ({
+            id: entry.id || `mot-${Math.random().toString(36).substr(2, 9)}`,
+            test_date: entry.test_date || new Date().toISOString(),
+            expiry_date: entry.expiry_date || null,
+            odometer: entry.odometer || 0,
+            result: entry.result || 'Unknown',
+            advisory_notes: entry.advisory_notes || [],
+            failure_reasons: entry.failure_reasons || null
+          }));
+          
+          setMotHistory(processedHistory);
+        } else {
+          setMotHistory([]);
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching MOT history:', err);
+        setMotHistory([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
   return (
     <PageContainer>
       <Title>Vehicle Lookup</Title>
@@ -570,7 +655,7 @@ const VehicleLookupPage: React.FC = () => {
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>Mileage</DetailLabel>
-                  <DetailValue>{vehicleData.mileage.toLocaleString()} miles</DetailValue>
+                  <DetailValue>{vehicleData.mileage?.toLocaleString() || 'Not available'} miles</DetailValue>
                 </DetailItem>
                 <DetailItem>
                   <DetailLabel>VIN</DetailLabel>

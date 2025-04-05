@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
-import { colors, spacing, typography, mixins } from '../styles/styleGuide';
+import { colors, spacing, typography, mixins, shadows } from '../styles/styleGuide';
 
 // Types
 interface Vehicle {
@@ -231,60 +231,184 @@ const ErrorContainer = styled.div`
   }
 `;
 
-const MOTHistorySection = styled(DetailSection)`
-  margin-top: ${spacing[6]};
+const MOTHistorySection = styled.div`
+  grid-column: 1 / -1; // Span all columns
+  margin-top: ${spacing[8]};
 `;
 
-const MOTEntry = styled.div`
-  border-bottom: 1px solid ${colors.dark.border};
-  padding-bottom: ${spacing[4]};
-  margin-bottom: ${spacing[4]};
+const MOTSummary = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: ${spacing[4]};
+  margin-bottom: ${spacing[6]};
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+    gap: ${spacing[4]};
+  }
+`;
+
+const MOTSummaryItem = styled.div`
+  background-color: ${colors.light.surface};
+  border-radius: 8px;
+  padding: ${spacing[4]};
+  display: flex;
+  flex-direction: column;
+`;
+
+const MOTSummaryLabel = styled.span`
+  color: ${colors.text.secondary};
+  font-size: ${typography.fontSize.sm};
+  margin-bottom: ${spacing[2]};
+`;
+
+const MOTSummaryValue = styled.span<{ highlight?: boolean; color?: string }>`
+  font-size: ${typography.fontSize['2xl']};
+  font-weight: ${typography.fontWeight.bold};
+  color: ${props => props.color ? props.color : props.highlight ? colors.primary.main : colors.text.primary};
+`;
+
+const MOTTimelineContainer = styled.div`
+  background-color: ${colors.light.surface};
+  border-radius: 12px;
+  padding: ${spacing[6]};
+  position: relative;
+  box-shadow: ${shadows.md};
+`;
+
+const MOTTimeline = styled.div`
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 15px;
+    width: 2px;
+    background-color: ${colors.light.border};
+  }
+`;
+
+const MOTTimelineItem = styled.div`
+  position: relative;
+  padding-left: 45px;
+  padding-bottom: ${spacing[6]};
   
   &:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
+    padding-bottom: 0;
   }
 `;
 
-const MOTHeader = styled.div`
+const StatusIndicator = styled.div<{ passed: boolean }>`
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: ${props => props.passed ? colors.state.success : colors.state.error};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 1;
+`;
+
+const MOTTimelineCard = styled.div`
+  background-color: white;
+  border: 1px solid ${colors.light.border};
+  border-radius: 8px;
+  padding: ${spacing[4]};
+`;
+
+const MOTTimelineHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: ${spacing[3]};
+  margin-bottom: ${spacing[2]};
+`;
+
+const MOTTimelineDate = styled.div<{ passed: boolean }>`
+  font-weight: ${typography.fontWeight.semibold};
+  font-size: ${typography.fontSize.lg};
+  color: ${props => props.passed ? colors.state.success : colors.state.error};
+`;
+
+const MOTTimelineLocation = styled.div`
+  color: ${colors.text.secondary};
+  font-size: ${typography.fontSize.sm};
+`;
+
+const MOTTimelineDetails = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: ${spacing[2]};
   
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
     flex-direction: column;
-    gap: ${spacing[2]};
   }
 `;
 
-const MOTDate = styled.span`
+const MOTTimelineInfo = styled.div`
+  flex: 1;
+`;
+
+const MOTTimelineMileage = styled.div`
   font-weight: ${typography.fontWeight.medium};
+  margin-top: ${spacing[1]};
 `;
 
-const MOTResult = styled.span<{ result: string }>`
-  padding: ${spacing[1]} ${spacing[3]};
-  border-radius: 4px;
-  font-size: ${typography.fontSize.sm};
-  font-weight: ${typography.fontWeight.medium};
-  color: white;
-  background-color: ${props => props.result === 'pass' ? colors.state.success : colors.state.error};
+const MOTTimelineExpiry = styled.div`
+  text-align: right;
+  
+  @media (max-width: 768px) {
+    text-align: left;
+    margin-top: ${spacing[2]};
+  }
 `;
 
-const MOTDetails = styled.div`
-  margin-top: ${spacing[3]};
-`;
-
-const MOTDetailTitle = styled.h4`
-  font-size: ${typography.fontSize.sm};
+const AdvisoryBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background-color: ${colors.state.warning}20;
   color: ${colors.text.secondary};
-  margin-bottom: ${spacing[2]};
+  padding: ${spacing[1]} ${spacing[2]};
+  border-radius: 4px;
+  font-size: ${typography.fontSize.xs};
+  margin-top: ${spacing[2]};
+  
+  svg {
+    margin-right: ${spacing[1]};
+    color: ${colors.state.warning};
+  }
 `;
 
-const MOTDetailText = styled.p`
+const DetailsToggle = styled.button`
+  background: none;
+  border: none;
+  color: ${colors.primary.main};
+  font-weight: ${typography.fontWeight.medium};
   font-size: ${typography.fontSize.sm};
-  color: ${colors.text.primary};
-  margin-bottom: ${spacing[2]};
-  line-height: 1.6;
+  padding: ${spacing[2]} 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  margin-top: ${spacing[2]};
+  
+  &:hover {
+    text-decoration: underline;
+  }
+  
+  svg {
+    margin-right: ${spacing[1]};
+    transition: transform 0.2s ease;
+  }
+`;
+
+const ExpandedDetails = styled.div`
+  margin-top: ${spacing[4]};
+  border-top: 1px solid ${colors.light.border};
+  padding-top: ${spacing[4]};
 `;
 
 // Component
@@ -298,6 +422,7 @@ const ListingDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [motError, setMotError] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
 
   useEffect(() => {
     if (id) {
@@ -306,8 +431,14 @@ const ListingDetailPage = () => {
         .then(response => {
           console.log('Listing detail response:', response);
           // API might return the listing directly or nested in data.listing
-          const listingData = response.listing || response;
+          const listingData = response?.listing || response;
+          
           if (listingData) {
+            // Ensure vehicle object exists and has proper fallbacks
+            if (!listingData.vehicle) {
+              listingData.vehicle = {};
+            }
+            
             setListing(listingData as ListingDetail);
             
             // If vehicle has registration, fetch MOT history
@@ -374,6 +505,13 @@ const ListingDetailPage = () => {
           setMotLoading(false);
         });
     }
+  };
+
+  const toggleDetails = (id: string | number) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   };
 
   if (loading) {
@@ -549,85 +687,174 @@ const ListingDetailPage = () => {
               </Button>
             )}
           </DetailSection>
-          
-          {listing.vehicle.registration && (
-            <MOTHistorySection>
-              <SectionTitle>MOT History</SectionTitle>
-              
-              {motLoading && <p>Loading MOT history...</p>}
-              
-              {motError && <p>Error: {motError}</p>}
-              
-              {!motLoading && !motError && motHistory.length === 0 && (
-                <p>No MOT history available for this vehicle.</p>
-              )}
-              
-              {!motLoading && !motError && motHistory.length > 0 && (
-                <>
-                  {motHistory.map((entry) => (
-                    <MOTEntry key={entry.id}>
-                      <MOTHeader>
-                        <MOTDate>Test Date: {formatDate(entry.test_date)}</MOTDate>
-                        <MOTResult result={entry.result.toLowerCase()}>
-                          {entry.result.toUpperCase()}
-                        </MOTResult>
-                      </MOTHeader>
-                      
-                      <div>
-                        <SpecItem>
-                          <SpecLabel>Odometer Reading</SpecLabel>
-                          <SpecValue>{entry.odometer.toLocaleString()} miles</SpecValue>
-                        </SpecItem>
-                      </div>
-                      
-                      {entry.advisory_notes && (
-                        <MOTDetails>
-                          <MOTDetailTitle>Advisory Notes</MOTDetailTitle>
-                          {Array.isArray(entry.advisory_notes) ? (
-                            <ul style={{ margin: 0, paddingLeft: '1rem' }}>
-                              {entry.advisory_notes.map((note, index) => (
-                                <li key={index}>
-                                  <MOTDetailText>{note}</MOTDetailText>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <MOTDetailText>{entry.advisory_notes}</MOTDetailText>
-                          )}
-                        </MOTDetails>
-                      )}
-                      
-                      {entry.failure_reasons && entry.failure_reasons.length > 0 && (
-                        <MOTDetails>
-                          <MOTDetailTitle>Failure Reasons</MOTDetailTitle>
-                          {Array.isArray(entry.failure_reasons) ? (
-                            <ul style={{ margin: 0, paddingLeft: '1rem' }}>
-                              {entry.failure_reasons.map((reason, index) => (
-                                <li key={index}>
-                                  <MOTDetailText>{reason}</MOTDetailText>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <MOTDetailText>{entry.failure_reasons}</MOTDetailText>
-                          )}
-                        </MOTDetails>
-                      )}
-                      
-                      <MOTDetails>
-                        <MOTDetailTitle>MOT Expiry</MOTDetailTitle>
-                        <MOTDetailText>
-                          {entry.expiry_date ? formatDate(entry.expiry_date) : 'No expiry date (Failed test)'}
-                        </MOTDetailText>
-                      </MOTDetails>
-                    </MOTEntry>
-                  ))}
-                </>
-              )}
-            </MOTHistorySection>
-          )}
         </div>
       </ListingGrid>
+      
+      {/* MOT History Section - Now outside the grid for full width */}
+      {!motLoading && !motError && motHistory.length > 0 && (
+        <MOTHistorySection>
+          <DetailSection>
+            <SectionTitle>MOT Test History</SectionTitle>
+            
+            <MOTSummary>
+              <MOTSummaryItem>
+                <MOTSummaryLabel>Total Tests</MOTSummaryLabel>
+                <MOTSummaryValue>{motHistory.length}</MOTSummaryValue>
+              </MOTSummaryItem>
+              
+              <MOTSummaryItem>
+                <MOTSummaryLabel>Passed Tests</MOTSummaryLabel>
+                <MOTSummaryValue color={colors.state.success}>
+                  {motHistory.filter(test => test.result.toLowerCase() === 'pass').length}
+                </MOTSummaryValue>
+              </MOTSummaryItem>
+              
+              <MOTSummaryItem>
+                <MOTSummaryLabel>Failed Tests</MOTSummaryLabel>
+                <MOTSummaryValue color={colors.state.error}>
+                  {motHistory.filter(test => test.result.toLowerCase() === 'fail').length}
+                </MOTSummaryValue>
+              </MOTSummaryItem>
+              
+              <MOTSummaryItem>
+                <MOTSummaryLabel>Latest Test</MOTSummaryLabel>
+                <MOTSummaryValue highlight>
+                  {motHistory.length > 0 && 
+                    (motHistory[0].result.toLowerCase() === 'pass' ? 'Passed' : 'Failed')}
+                </MOTSummaryValue>
+              </MOTSummaryItem>
+            </MOTSummary>
+            
+            <MOTTimelineContainer>
+              <MOTTimeline>
+                {motHistory.map((test) => {
+                  const isPassed = test.result.toLowerCase() === 'pass';
+                  const isExpanded = expandedItems[test.id] || false;
+                  const hasAdvisories = test.advisory_notes && (
+                    Array.isArray(test.advisory_notes) 
+                      ? test.advisory_notes.length > 0 
+                      : typeof test.advisory_notes === 'string' && test.advisory_notes.trim() !== ''
+                  );
+                  const hasFailures = test.failure_reasons && (
+                    Array.isArray(test.failure_reasons) 
+                      ? test.failure_reasons.length > 0 
+                      : typeof test.failure_reasons === 'string' && test.failure_reasons.trim() !== ''
+                  );
+                  
+                  return (
+                    <MOTTimelineItem key={test.id}>
+                      <StatusIndicator passed={isPassed}>
+                        {isPassed ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </StatusIndicator>
+                      
+                      <MOTTimelineCard>
+                        <MOTTimelineHeader>
+                          <MOTTimelineDate passed={isPassed}>
+                            {isPassed ? 'Passed' : 'Failed'} - {formatDate(test.test_date)}
+                          </MOTTimelineDate>
+                          <MOTTimelineLocation>
+                            MOT Test at Unknown
+                          </MOTTimelineLocation>
+                        </MOTTimelineHeader>
+                        
+                        <MOTTimelineDetails>
+                          <MOTTimelineInfo>
+                            <MOTSummaryLabel>Odometer Reading</MOTSummaryLabel>
+                            <MOTTimelineMileage>{test.odometer.toLocaleString()} mi</MOTTimelineMileage>
+                          </MOTTimelineInfo>
+                          
+                          {test.expiry_date && (
+                            <MOTTimelineExpiry>
+                              <MOTSummaryLabel>Expires</MOTSummaryLabel>
+                              <MOTTimelineMileage>{formatDate(test.expiry_date)}</MOTTimelineMileage>
+                            </MOTTimelineExpiry>
+                          )}
+                        </MOTTimelineDetails>
+                        
+                        {hasAdvisories && !isExpanded && (
+                          <AdvisoryBadge>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 9V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                            </svg>
+                            Advisories: {Array.isArray(test.advisory_notes) ? test.advisory_notes.length : 1}
+                          </AdvisoryBadge>
+                        )}
+                        
+                        {(hasAdvisories || hasFailures) && (
+                          <DetailsToggle onClick={() => toggleDetails(test.id)}>
+                            <svg 
+                              width="16" 
+                              height="16" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              xmlns="http://www.w3.org/2000/svg"
+                              style={{ transform: isExpanded ? 'rotate(90deg)' : 'none' }}
+                            >
+                              <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            {isExpanded ? 'Hide details' : 'Show details'}
+                          </DetailsToggle>
+                        )}
+                        
+                        {isExpanded && (
+                          <ExpandedDetails>
+                            {hasFailures && (
+                              <div style={{ marginBottom: spacing[4] }}>
+                                <MOTAdvisoriesTitle>Failure Reasons</MOTAdvisoriesTitle>
+                                <MOTAdvisoriesList>
+                                  {Array.isArray(test.failure_reasons) ? (
+                                    test.failure_reasons.map((reason, idx) => (
+                                      <MOTFailureItem key={idx}>{reason}</MOTFailureItem>
+                                    ))
+                                  ) : (
+                                    <MOTFailureItem>{test.failure_reasons}</MOTFailureItem>
+                                  )}
+                                </MOTAdvisoriesList>
+                              </div>
+                            )}
+                            
+                            {hasAdvisories && (
+                              <div>
+                                <MOTAdvisoriesTitle>Advisory Notices</MOTAdvisoriesTitle>
+                                <MOTAdvisoriesList>
+                                  {Array.isArray(test.advisory_notes) ? (
+                                    test.advisory_notes.map((note, idx) => (
+                                      <MOTAdvisoryItem key={idx}>{note}</MOTAdvisoryItem>
+                                    ))
+                                  ) : (
+                                    <MOTAdvisoryItem>{test.advisory_notes}</MOTAdvisoryItem>
+                                  )}
+                                </MOTAdvisoriesList>
+                              </div>
+                            )}
+                          </ExpandedDetails>
+                        )}
+                      </MOTTimelineCard>
+                    </MOTTimelineItem>
+                  );
+                })}
+              </MOTTimeline>
+            </MOTTimelineContainer>
+          </DetailSection>
+        </MOTHistorySection>
+      )}
+      
+      {!motLoading && !motError && motHistory.length === 0 && (
+        <MOTHistorySection>
+          <DetailSection>
+            <SectionTitle>MOT Test History</SectionTitle>
+            <p>No MOT history available for this vehicle.</p>
+          </DetailSection>
+        </MOTHistorySection>
+      )}
     </Container>
   );
 };

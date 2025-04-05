@@ -299,32 +299,39 @@ const HomePage: React.FC = () => {
         // Check if we have listings in the response
         if (response && response.listings && Array.isArray(response.listings)) {
           // Extract vehicles from listings based on the API response format
-          const vehicles = response.listings.map((listing: any) => {
-            return {
-              id: `vehicle-${listing.id}`,
-              make: listing.vehicle.make || 'Unknown',
-              model: listing.vehicle.model || listing.title.replace(listing.vehicle.make || '', '').trim(),
-              year: listing.vehicle.year || new Date().getFullYear(),
-              fuel_type: listing.vehicle.fuel_type || '',
-              transmission: listing.vehicle.transmission || '',
-              registration: listing.vehicle.registration || '',
-              listing: {
-                id: listing.id,
-                title: listing.title,
-                price: typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
-                source_url: listing.source_url || '',
-                image_urls: listing.image_urls || []
-              }
-            };
-          });
+          const vehicles = response.listings
+            .filter((listing: any) => listing && listing.vehicle) // Filter out listings without vehicle data
+            .map((listing: any) => {
+              const vehicle = listing.vehicle || {};
+              
+              return {
+                id: `vehicle-${listing.id}`,
+                make: vehicle.make || 'Unknown Make',
+                model: vehicle.model || (vehicle.make ? listing.title?.replace(vehicle.make, '').trim() : listing.title || 'Unknown Model'),
+                year: vehicle.year || new Date().getFullYear(),
+                fuel_type: vehicle.fuel_type || '',
+                transmission: vehicle.transmission || '',
+                registration: vehicle.registration || '',
+                mileage: vehicle.mileage || null,
+                listing: {
+                  id: listing.id,
+                  title: listing.title || `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Unknown Vehicle',
+                  price: typeof listing.price === 'string' ? parseFloat(listing.price) : (listing.price || 0),
+                  source_url: listing.source_url || '',
+                  image_urls: Array.isArray(listing.image_urls) ? listing.image_urls : []
+                }
+              };
+            });
           
           setFeaturedVehicles(vehicles);
         } else {
           console.error('Invalid response format:', response);
+          setFeaturedVehicles([]);
         }
       })
       .catch(error => {
         console.error('Error fetching featured vehicles:', error);
+        setFeaturedVehicles([]);
       })
       .finally(() => {
         setLoading(false);
