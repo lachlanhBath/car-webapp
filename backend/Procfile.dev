@@ -1,0 +1,4 @@
+web: bin/rails server
+css: bin/rails tailwindcss:watch
+redis: redis-server --port 6379
+worker: sleep 5 && bundle exec sidekiq
