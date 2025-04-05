@@ -97,4 +97,25 @@ Beyond the hackathon, we've identified several potential enhancements:
 
 ## License
 
-This project is created for Bath Hack 2025 and is not currently licensed for production use. 
+This project is created for Bath Hack 2025 and is not currently licensed for production use.
+
+## Development Best Practices
+
+### Directory Structure
+
+Always check your current directory before running commands to avoid confusion between frontend and backend:
+
+```bash
+# Check your current directory
+pwd
+
+# For backend commands, ensure you're in the backend directory
+cd backend
+bundle exec rails ...
+
+# For frontend commands, ensure you're in the frontend directory
+cd frontend
+npm run ...
+```
+
+This project is separated into frontend and backend directories, and commands intended for one will not work in the other. Taking a moment to verify your location can save troubleshooting time. 
