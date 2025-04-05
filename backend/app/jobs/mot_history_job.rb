@@ -38,6 +38,13 @@ class MotHistoryJob < ApplicationJob
         # Single vehicle format
         mot_tests = mot_data["motTests"] || []
         process_mot_tests(vehicle, mot_tests)
+
+        # also update some information on the vehicle that is only available in the MOT history
+        # like the model and most recent mileage
+        vehicle.update(
+          model: mot_data["model"],
+          mileage: extract_odometer(mot_tests.max_by { |test| test["completedDate"] })
+        )
       elsif mot_data.is_a?(Array) && mot_data.any?
         # Array format
         vehicle_data = mot_data.first
@@ -61,7 +68,7 @@ class MotHistoryJob < ApplicationJob
           test_date: parse_date(test["completedDate"]),
           expiry_date: parse_date(test["expiryDate"]),
           odometer: extract_odometer(test),
-          result: (test["testResult"] == "PASSED") ? "PASS" : "FAIL", 
+          result: (test["testResult"] == "PASSED") ? "PASS" : "FAIL",
           advisory_notes: extract_advisory_notes_array(test),
           failure_reasons: extract_failure_reasons_array(test)
         )
