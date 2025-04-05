@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  draw :madmin
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
@@ -17,19 +18,17 @@ Rails.application.routes.draw do
       
       # Vehicles
       resources :vehicles, only: [:show] do
-        collection do
-          post :lookup, to: 'vehicles#lookup_by_registration'
-        end
-        
-        member do
-          get :mot_histories
-        end
+        resources :mot_histories, only: [:index]
       end
+      
+      # MOT Histories
+      resources :mot_histories, only: [:show]
       
       # Searches
       resources :searches, only: [:create] do
         collection do
           get :recent
+          get :popular
         end
       end
     end
