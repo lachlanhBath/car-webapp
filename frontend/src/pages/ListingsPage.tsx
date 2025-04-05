@@ -7,6 +7,10 @@ import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Select from '../components/UI/Select';
+import { motion } from 'motion/react';
+import { FadeIn, StaggerContainer, TextReveal } from '../components/UI/ScrollAnimations';
+import MotionButton from '../components/UI/MotionButton';
+import AnimatedSection from '../components/AnimatedSection';
 
 // Types for our data
 interface VehicleSummary {
@@ -161,7 +165,7 @@ const QuickFiltersContainer = styled.div`
   margin-bottom: ${spacing[6]};
 `;
 
-const QuickFilterChip = styled.button<{ $active?: boolean }>`
+const QuickFilterChip = styled(motion.button)<{ $active?: boolean }>`
   background-color: ${props => props.$active ? `${colors.primary.main}15` : 'transparent'};
   border: 1px solid ${props => props.$active ? colors.primary.main : colors.dark.border};
   border-radius: 24px;
@@ -170,13 +174,6 @@ const QuickFilterChip = styled.button<{ $active?: boolean }>`
   font-weight: ${typography.fontWeight.medium};
   color: ${props => props.$active ? colors.primary.main : colors.text.primary};
   cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    border-color: ${colors.primary.main};
-    background-color: ${colors.primary.main}10;
-    transform: translateY(-2px);
-  }
 `;
 
 const FilterSection = styled.div`
@@ -269,20 +266,15 @@ const ListingsGrid = styled.div`
   }
 `;
 
-const ListingCard = styled(Card)`
+const ListingCard = styled(motion(Card))`
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease;
   border-radius: 12px;
   border: 1px solid ${colors.dark.border};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  
-  &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-  }
 `;
 
 const ListingImageContainer = styled.div`
@@ -294,15 +286,10 @@ const ListingImageContainer = styled.div`
   overflow: hidden;
 `;
 
-const ListingImage = styled.img`
+const ListingImage = styled(motion.img)`
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
-  
-  ${ListingCard}:hover & {
-    transform: scale(1.08);
-  }
 `;
 
 const ListingPrice = styled.div`
@@ -526,7 +513,7 @@ const ResultsCount = styled.div`
   font-weight: ${typography.fontWeight.semibold};
 `;
 
-const EmptyState = styled.div`
+const EmptyState = styled(motion.div)`
   text-align: center;
   padding: ${spacing[8]};
   background-color: ${colors.dark.surface};
@@ -906,152 +893,170 @@ const ListingsPage: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader>
-        <Title>
-          Vehicle Listings
-          {activeFilters > 0 && (
-            <span style={{ 
-              marginLeft: spacing[3], 
-              fontSize: typography.fontSize.lg,
-              color: colors.primary.main,
-              backgroundColor: `${colors.primary.main}20`,
-              padding: `${spacing[1]} ${spacing[3]}`,
-              borderRadius: '16px',
-            }}>
-              {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'} active
-            </span>
-          )}
-          {!loading && pagination.totalCount > 0 && (
-            <span style={{ 
-              marginLeft: spacing[3], 
-              fontSize: typography.fontSize.lg,
-              color: colors.text.secondary,
-            }}>
-              {pagination.totalCount} {pagination.totalCount === 1 ? 'vehicle' : 'vehicles'} found
-            </span>
-          )}
-        </Title>
-        
-        <QuickFiltersContainer>
-          {QUICK_FILTERS.map((quickFilter, index) => (
-            <QuickFilterChip
-              key={index}
-              $active={
-                Object.entries(quickFilter.filters).some(([key, value]) => 
-                  Array.isArray(value) 
-                    ? (filters[key as keyof typeof filters] as any)?.includes(value[0])
-                    : filters[key as keyof typeof filters] === value
-                )
-              }
-              onClick={() => handleQuickFilter(quickFilter.filters)}
-            >
-              {quickFilter.label}
-            </QuickFilterChip>
-          ))}
-        </QuickFiltersContainer>
-        
-        <FilterSection>
-          <FilterSectionHeader onClick={toggleFilters}>
-            <FilterSectionTitle>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 0.55 0.45 1 1 1h2c0.55 0 1-0.45 1-1v-6s3.72-4.8 5.74-7.39C20.25 4.95 19.78 4 18.95 4H5.04C4.21 4 3.74 4.95 4.25 5.61z" fill="currentColor"/>
-              </svg>
-              Filter Vehicles {activeFilters > 0 && `(${activeFilters} active)`}
-            </FilterSectionTitle>
-            <FilterArrow $expanded={filtersExpanded}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </FilterArrow>
-          </FilterSectionHeader>
+        <FadeIn direction="down" once={true}>
+          <Title>
+            Vehicle Listings
+            {activeFilters > 0 && (
+              <span style={{ 
+                marginLeft: spacing[3], 
+                fontSize: typography.fontSize.lg,
+                color: colors.primary.main,
+                backgroundColor: `${colors.primary.main}20`,
+                padding: `${spacing[1]} ${spacing[3]}`,
+                borderRadius: '16px',
+              }}>
+                {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'} active
+              </span>
+            )}
+            {!loading && pagination.totalCount > 0 && (
+              <span style={{ 
+                marginLeft: spacing[3], 
+                fontSize: typography.fontSize.lg,
+                color: colors.text.secondary,
+              }}>
+                {pagination.totalCount} {pagination.totalCount === 1 ? 'vehicle' : 'vehicles'} found
+              </span>
+            )}
+          </Title>
+          
+          <StaggerContainer staggerAmount={0.05} delay={0.2}>
+            <QuickFiltersContainer>
+              {QUICK_FILTERS.map((quickFilter, index) => (
+                <QuickFilterChip
+                  key={index}
+                  $active={
+                    Object.entries(quickFilter.filters).some(([key, value]) => 
+                      Array.isArray(value) 
+                        ? (filters[key as keyof typeof filters] as any)?.includes(value[0])
+                        : filters[key as keyof typeof filters] === value
+                    )
+                  }
+                  onClick={() => handleQuickFilter(quickFilter.filters)}
+                  whileHover={{ 
+                    y: -2, 
+                    borderColor: colors.primary.main,
+                    backgroundColor: `${colors.primary.main}10`
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  variants={{}}
+                >
+                  {quickFilter.label}
+                </QuickFilterChip>
+              ))}
+            </QuickFiltersContainer>
+          </StaggerContainer>
+          
+          <AnimatedSection direction="up" delay={0.3}>
+            <FilterSection>
+              <FilterSectionHeader onClick={toggleFilters}>
+                <FilterSectionTitle>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 0.55 0.45 1 1 1h2c0.55 0 1-0.45 1-1v-6s3.72-4.8 5.74-7.39C20.25 4.95 19.78 4 18.95 4H5.04C4.21 4 3.74 4.95 4.25 5.61z" fill="currentColor"/>
+                  </svg>
+                  Filter Vehicles {activeFilters > 0 && `(${activeFilters} active)`}
+                </FilterSectionTitle>
+                <FilterArrow $expanded={filtersExpanded}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </FilterArrow>
+              </FilterSectionHeader>
 
-          <FilterContent $expanded={filtersExpanded}>
-            <FilterGrid>
-              <Input 
-                label="Make"
-                name="make"
-                value={filters.make}
-                onChange={handleFilterChange}
-                placeholder="Any make"
-              />
-              
-              <Input 
-                label="Model"
-                name="model"
-                value={filters.model}
-                onChange={handleFilterChange}
-                placeholder="Any model"
-              />
-              
-              <Input 
-                label="Min Price"
-                name="minPrice"
-                type="number"
-                value={filters.minPrice}
-                onChange={handleFilterChange}
-                placeholder="£"
-              />
-              
-              <Input 
-                label="Max Price"
-                name="maxPrice"
-                type="number"
-                value={filters.maxPrice}
-                onChange={handleFilterChange}
-                placeholder="£"
-              />
-              
-              <Input 
-                label="Year From"
-                name="yearFrom"
-                type="number"
-                value={filters.yearFrom}
-                onChange={handleFilterChange}
-                placeholder="From"
-              />
-              
-              <Input 
-                label="Year To"
-                name="yearTo"
-                type="number"
-                value={filters.yearTo}
-                onChange={handleFilterChange}
-                placeholder="To"
-              />
-              
-              <Select
-                label="Fuel Type"
-                name="fuelType"
-                value={filters.fuelType}
-                onChange={handleFilterChange}
-                options={FUEL_TYPES}
-              />
-              
-              <Select
-                label="Transmission"
-                name="transmission"
-                value={filters.transmission}
-                onChange={handleFilterChange}
-                options={TRANSMISSION_TYPES}
-              />
-            </FilterGrid>
-            
-            <ActionButtons>
-              <Button 
-                variant="secondary" 
-                onClick={handleResetFilters}
-                disabled={filterLoading || activeFilters === 0}
-              >
-                Reset Filters
-              </Button>
-              <Button 
-                onClick={handleApplyFilters}
-                disabled={filterLoading}
-              >
-                {filterLoading ? 'Applying...' : 'Apply Filters'}
-              </Button>
-            </ActionButtons>
-          </FilterContent>
-        </FilterSection>
+              <FilterContent $expanded={filtersExpanded}>
+                <FilterGrid>
+                  <Input 
+                    label="Make"
+                    name="make"
+                    value={filters.make}
+                    onChange={handleFilterChange}
+                    placeholder="Any make"
+                  />
+                  
+                  <Input 
+                    label="Model"
+                    name="model"
+                    value={filters.model}
+                    onChange={handleFilterChange}
+                    placeholder="Any model"
+                  />
+                  
+                  <Input 
+                    label="Min Price"
+                    name="minPrice"
+                    type="number"
+                    value={filters.minPrice}
+                    onChange={handleFilterChange}
+                    placeholder="£"
+                  />
+                  
+                  <Input 
+                    label="Max Price"
+                    name="maxPrice"
+                    type="number"
+                    value={filters.maxPrice}
+                    onChange={handleFilterChange}
+                    placeholder="£"
+                  />
+                  
+                  <Input 
+                    label="Year From"
+                    name="yearFrom"
+                    type="number"
+                    value={filters.yearFrom}
+                    onChange={handleFilterChange}
+                    placeholder="From"
+                  />
+                  
+                  <Input 
+                    label="Year To"
+                    name="yearTo"
+                    type="number"
+                    value={filters.yearTo}
+                    onChange={handleFilterChange}
+                    placeholder="To"
+                  />
+                  
+                  <Select
+                    label="Fuel Type"
+                    name="fuelType"
+                    value={filters.fuelType}
+                    onChange={handleFilterChange}
+                    options={FUEL_TYPES}
+                  />
+                  
+                  <Select
+                    label="Transmission"
+                    name="transmission"
+                    value={filters.transmission}
+                    onChange={handleFilterChange}
+                    options={TRANSMISSION_TYPES}
+                  />
+                </FilterGrid>
+                
+                <ActionButtons>
+                  <MotionButton 
+                    variant="secondary" 
+                    onClick={handleResetFilters}
+                    disabled={filterLoading || activeFilters === 0}
+                    animateOnHover={true}
+                    animateOnTap={true}
+                  >
+                    Reset Filters
+                  </MotionButton>
+                  <MotionButton 
+                    onClick={handleApplyFilters}
+                    disabled={filterLoading}
+                    animateOnHover={true}
+                    animateOnTap={true}
+                  >
+                    {filterLoading ? 'Applying...' : 'Apply Filters'}
+                  </MotionButton>
+                </ActionButtons>
+              </FilterContent>
+            </FilterSection>
+          </AnimatedSection>
+        </FadeIn>
       </PageHeader>
       
       {loading ? (
@@ -1062,170 +1067,208 @@ const ListingsPage: React.FC = () => {
         </>
       ) : listings.length > 0 ? (
         <>
-          <ListingsGrid>
-            {listings.map(listing => {
-              // Ensure we have a valid listing object with required properties
-              if (!listing) {
-                return null; // Skip this listing if it's undefined
-              }
-              
-              // Make sure listing.vehicle exists, create a dummy one if not
-              const vehicle = listing.vehicle || {
-                make: 'Unknown',
-                model: 'Unknown',
-                year: 'N/A',
-                fuel_type: 'Unknown',
-                transmission: 'Unknown'
-              };
-              
-              return (
-                <ListingCard key={listing.id}>
-                  <ListingImageContainer>
-                    <ListingImage
-                      src={listing.image_urls?.[0] || '/placeholder-car.jpg'}
-                      alt={listing.title || 'Vehicle listing'}
-                    />
-                    <ListingPrice>
-                      {formatPrice(listing.price || 0)}
-                    </ListingPrice>
-                  </ListingImageContainer>
+          <StaggerContainer staggerAmount={0.05} delay={0.3}>
+            <ListingsGrid>
+              {listings.map(listing => {
+                // Ensure we have a valid listing object with required properties
+                if (!listing) {
+                  return null; // Skip this listing if it's undefined
+                }
+                
+                // Make sure listing.vehicle exists, create a dummy one if not
+                const vehicle = listing.vehicle || {
+                  make: 'Unknown',
+                  model: 'Unknown',
+                  year: 'N/A',
+                  fuel_type: 'Unknown',
+                  transmission: 'Unknown'
+                };
+                
+                return (
+                  <ListingCard 
+                    key={listing.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    whileHover={{ 
+                      y: -8, 
+                      boxShadow: '0 12px 24px rgba(0, 0, 0, 0.08)' 
+                    }}
+                    variants={{}}
+                  >
+                    <ListingImageContainer>
+                      <ListingImage
+                        src={listing.image_urls?.[0] || '/placeholder-car.jpg'}
+                        alt={listing.title || 'Vehicle listing'}
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ duration: 0.5 }}
+                      />
+                      <ListingPrice>
+                        {formatPrice(listing.price || 0)}
+                      </ListingPrice>
+                    </ListingImageContainer>
 
-                  <ListingContent>
-                    <ListingTitle>
-                      <Link to={`/listings/${listing.id}`}>
-                        {listing.title || 'Vehicle listing'}
-                      </Link>
-                    </ListingTitle>
+                    <ListingContent>
+                      <ListingTitle>
+                        <Link to={`/listings/${listing.id}`}>
+                          {listing.title || 'Vehicle listing'}
+                        </Link>
+                      </ListingTitle>
 
-                    <ListingLocation>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
-                      </svg>
-                      {listing.location || 'Location unknown'}
-                    </ListingLocation>
-
-                    <ListingSpecs>
-                      <SpecItem>
-                        <SpecLabel>Make</SpecLabel>
-                        <SpecValue>{vehicle.make || 'Unknown'}</SpecValue>
-                      </SpecItem>
-
-                      <SpecItem>
-                        <SpecLabel>Model</SpecLabel>
-                        <SpecValue>{vehicle.model || 'Unknown'}</SpecValue>
-                      </SpecItem>
-
-                      <SpecItem>
-                        <SpecLabel>Year</SpecLabel>
-                        <SpecValue>{vehicle.year || 'Unknown'}</SpecValue>
-                      </SpecItem>
-
-                      <SpecItem>
-                        <SpecLabel>Mileage</SpecLabel>
-                        <SpecValue>
-                          {vehicle.mileage ? `${vehicle.mileage.toLocaleString()} miles` : 'Unknown'}
-                        </SpecValue>
-                      </SpecItem>
-                      
-                      {vehicle.registration && (
-                        <SpecItem>
-                          <SpecLabel>
-                            Reg
-                            {vehicle.registration_source === "ai_vision" && (
-                              <SmallAITag>AI</SmallAITag>
-                            )}
-                          </SpecLabel>
-                          <SpecValue>
-                            {vehicle.registration}
-                          </SpecValue>
-                        </SpecItem>
-                      )}
-                      
-                      {vehicle.mot_status && (
-                        <SpecItem>
-                          <SpecLabel>MOT</SpecLabel>
-                          <SpecValue>
-                            <MOTStatusBadge status={vehicle.mot_status}>
-                              {vehicle.mot_status}
-                              {vehicle.mot_expiry_date && vehicle.mot_status.toLowerCase() === 'valid' && 
-                                ` - Exp. ${new Date(vehicle.mot_expiry_date).toLocaleDateString('en-GB', { 
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: '2-digit'
-                                })}`
-                              }
-                            </MOTStatusBadge>
-                          </SpecValue>
-                        </SpecItem>
-                      )}
-                    </ListingSpecs>
-                    
-                    {vehicle.purchase_summary && (
-                      <AIPoweredContainer>
-                        <AIBadge>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '4px' }}>
-                            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-                            <path d="M2 17L12 22L22 17" fill="currentColor"/>
-                            <path d="M2 12L12 17L22 12" fill="currentColor"/>
-                          </svg>
-                          AI Analysis
-                        </AIBadge>
-                        <PurchaseSummaryPreview>
-                          {vehicle.purchase_summary}
-                        </PurchaseSummaryPreview>
-                      </AIPoweredContainer>
-                    )}
-
-                    {vehicle.mot_repair_estimate && (
-                      <RepairEstimateBadge>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" 
-                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                        </svg>
-                        MOT Repair Estimate Available
-                      </RepairEstimateBadge>
-                    )}
-
-                    {vehicle.expected_lifetime && (
-                      <ExpectedLifetimeBadge>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Expected Lifetime: {vehicle.expected_lifetime}
-                      </ExpectedLifetimeBadge>
-                    )}
-
-                    <Button
-                      as={Link}
-                      to={`/listings/${listing.id}`}
-                      fullWidth
-                      icon={
+                      <ListingLocation>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8 12H16M16 12L12 8M16 12L12 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
                         </svg>
-                      }
-                      iconPosition="right"
-                    >
-                      View Details
-                    </Button>
-                  </ListingContent>
-                </ListingCard>
-              );
-            })}
-          </ListingsGrid>
+                        {listing.location || 'Location unknown'}
+                      </ListingLocation>
+
+                      <ListingSpecs>
+                        <SpecItem>
+                          <SpecLabel>Make</SpecLabel>
+                          <SpecValue>{vehicle.make || 'Unknown'}</SpecValue>
+                        </SpecItem>
+
+                        <SpecItem>
+                          <SpecLabel>Model</SpecLabel>
+                          <SpecValue>{vehicle.model || 'Unknown'}</SpecValue>
+                        </SpecItem>
+
+                        <SpecItem>
+                          <SpecLabel>Year</SpecLabel>
+                          <SpecValue>{vehicle.year || 'Unknown'}</SpecValue>
+                        </SpecItem>
+
+                        <SpecItem>
+                          <SpecLabel>Mileage</SpecLabel>
+                          <SpecValue>
+                            {vehicle.mileage ? `${vehicle.mileage.toLocaleString()} miles` : 'Unknown'}
+                          </SpecValue>
+                        </SpecItem>
+                        
+                        {vehicle.registration && (
+                          <SpecItem>
+                            <SpecLabel>
+                              Reg
+                              {vehicle.registration_source === "ai_vision" && (
+                                <SmallAITag>AI</SmallAITag>
+                              )}
+                            </SpecLabel>
+                            <SpecValue>
+                              {vehicle.registration}
+                            </SpecValue>
+                          </SpecItem>
+                        )}
+                        
+                        {vehicle.mot_status && (
+                          <SpecItem>
+                            <SpecLabel>MOT</SpecLabel>
+                            <SpecValue>
+                              <MOTStatusBadge status={vehicle.mot_status}>
+                                {vehicle.mot_status}
+                                {vehicle.mot_expiry_date && vehicle.mot_status.toLowerCase() === 'valid' && 
+                                  ` - Exp. ${new Date(vehicle.mot_expiry_date).toLocaleDateString('en-GB', { 
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: '2-digit'
+                                  })}`
+                                }
+                              </MOTStatusBadge>
+                            </SpecValue>
+                          </SpecItem>
+                        )}
+                      </ListingSpecs>
+                      
+                      {vehicle.purchase_summary && (
+                        <AIPoweredContainer>
+                          <AIBadge>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '4px' }}>
+                              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                              <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                              <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                            </svg>
+                            AI Analysis
+                          </AIBadge>
+                          <PurchaseSummaryPreview>
+                            {vehicle.purchase_summary}
+                          </PurchaseSummaryPreview>
+                        </AIPoweredContainer>
+                      )}
+
+                      {vehicle.mot_repair_estimate && (
+                        <RepairEstimateBadge>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" 
+                              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                          </svg>
+                          MOT Repair Estimate Available
+                        </RepairEstimateBadge>
+                      )}
+
+                      {vehicle.expected_lifetime && (
+                        <ExpectedLifetimeBadge>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Expected Lifetime: {vehicle.expected_lifetime}
+                        </ExpectedLifetimeBadge>
+                      )}
+
+                      <Button
+                        as={Link}
+                        to={`/listings/${listing.id}`}
+                        fullWidth
+                        icon={
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 12H16M16 12L12 8M16 12L12 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        }
+                        iconPosition="right"
+                      >
+                        View Details
+                      </Button>
+                    </ListingContent>
+                  </ListingCard>
+                );
+              })}
+            </ListingsGrid>
+          </StaggerContainer>
           
-          <PaginationContainer>
-            {renderPaginationButtons()}
-          </PaginationContainer>
+          <AnimatedSection direction="up" delay={0.4} distance={20}>
+            <PaginationContainer>
+              {renderPaginationButtons()}
+            </PaginationContainer>
+          </AnimatedSection>
         </>
       ) : (
-        <EmptyState>
-          <h3>No listings found</h3>
-          <p>Try adjusting your filters to see more results</p>
-          <Button onClick={handleResetFilters}>
-            Reset Filters
-          </Button>
+        <EmptyState
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.h3
+            initial={{ y: -10 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            No listings found
+          </motion.h3>
+          <motion.p
+            initial={{ y: -10 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            Try adjusting your filters to see more results
+          </motion.p>
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Button onClick={handleResetFilters}>
+              Reset Filters
+            </Button>
+          </motion.div>
         </EmptyState>
       )}
     </PageContainer>

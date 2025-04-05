@@ -33,11 +33,35 @@ const Logo = styled(Link)`
   color: ${colors.text.primary};
   text-decoration: none;
   letter-spacing: ${typography.letterSpacing.tight};
+  display: flex;
+  align-items: center;
+  gap: ${spacing[2]};
   
   &:hover {
     color: ${colors.primary.main};
     text-decoration: none;
   }
+`;
+
+const LogoImg = styled.img`
+  height: 40px;
+  width: auto;
+`;
+
+const BrandText = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const BrandName = styled.span`
+  line-height: 1;
+`;
+
+const Tagline = styled.span`
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.regular};
+  color: ${colors.text.secondary};
+  line-height: 1;
 `;
 
 const Nav = styled.nav`
@@ -100,7 +124,13 @@ const Header: React.FC = () => {
   return (
     <HeaderContainer>
       <HeaderContent>
-        <Logo to="/">VehicleLookup</Logo>
+        <Logo to="/">
+          <LogoImg src="/logo.png" alt="AutoBiography Logo" />
+          <BrandText>
+            <BrandName>AutoBiography</BrandName>
+            <Tagline>Car history & analytics</Tagline>
+          </BrandText>
+        </Logo>
         <Nav>
           <NavLink to="/" isActive={isActive('/')}>
             Home
