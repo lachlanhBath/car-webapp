@@ -11,24 +11,24 @@ import Input from '../components/UI/Input';
 interface Vehicle {
   id: string;
   make: string;
-  model: string;
+  model: string | null;
   year: number;
   fuel_type: string;
-  transmission: string;
+  transmission: string | null;
   engine_size?: string;
-  body_type?: string;
-  doors?: number;
+  body_type?: string | null;
+  doors?: number | null;
   color?: string;
   mileage?: number;
-  registration: string;
-  vin?: string;
+  registration?: string;
+  vin?: string | null;
   mot_status?: string;
   mot_expiry_date?: string;
   listing?: {
-    id: string;
+    id: string | number;
     title: string;
     price: number;
-    source_url: string;
+    source_url?: string;
     image_urls?: string[];
   };
 }
@@ -294,28 +294,33 @@ const HomePage: React.FC = () => {
     setLoading(true);
     listingsApi.getListings({ per_page: 6 })
       .then(response => {
-        if (response.data && response.listings) {
-          // Extract vehicles from listings based on the actual API response format
+        console.log('HomePage API response:', response);
+        
+        // Check if we have listings in the response
+        if (response && response.listings && Array.isArray(response.listings)) {
+          // Extract vehicles from listings based on the API response format
           const vehicles = response.listings.map((listing: any) => {
             return {
               id: `vehicle-${listing.id}`,
               make: listing.vehicle.make || 'Unknown',
-              model: listing.vehicle.model || listing.title.replace(listing.vehicle.make, '').trim(),
+              model: listing.vehicle.model || listing.title.replace(listing.vehicle.make || '', '').trim(),
               year: listing.vehicle.year || new Date().getFullYear(),
               fuel_type: listing.vehicle.fuel_type || '',
               transmission: listing.vehicle.transmission || '',
-              registration: '',
+              registration: listing.vehicle.registration || '',
               listing: {
                 id: listing.id,
                 title: listing.title,
-                price: parseFloat(listing.price),
-                source_url: '',
-                image_urls: listing.image_urls
+                price: typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
+                source_url: listing.source_url || '',
+                image_urls: listing.image_urls || []
               }
             };
           });
           
           setFeaturedVehicles(vehicles);
+        } else {
+          console.error('Invalid response format:', response);
         }
       })
       .catch(error => {
@@ -387,28 +392,41 @@ const HomePage: React.FC = () => {
       
       <Section>
         <SectionTitle>Featured Vehicles</SectionTitle>
-        <FeaturedListings>
-          {featuredVehicles.map(vehicle => (
-            <ListingCard key={vehicle.id}>
-              <ListingImage style={{ backgroundImage: `url(${vehicle.listing?.image_urls?.[0] || ''})` }} />
-              <ListingContent>
-                {vehicle.listing && <ListingPrice>{formatPrice(vehicle.listing.price)}</ListingPrice>}
-                <ListingTitle>{vehicle.make} {vehicle.model}</ListingTitle>
-                <ListingDetail>
-                  {vehicle.year} • {vehicle.fuel_type} • {vehicle.transmission}
-                  {vehicle.mileage && ` • ${vehicle.mileage.toLocaleString()} miles`}
-                </ListingDetail>
-                <Button as={Link} to={`/vehicles/${vehicle.id}`} fullWidth>
-                  View Vehicle Details
-                </Button>
-              </ListingContent>
-            </ListingCard>
-          ))}
-        </FeaturedListings>
+        
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: spacing[8] }}>
+            <p>Loading featured vehicles...</p>
+          </div>
+        ) : featuredVehicles.length > 0 ? (
+          <FeaturedListings>
+            {featuredVehicles.map(vehicle => (
+              <ListingCard key={vehicle.id}>
+                <ListingImage style={{ backgroundImage: `url(${vehicle.listing?.image_urls?.[0] || ''})` }} />
+                <ListingContent>
+                  {vehicle.listing && <ListingPrice>{formatPrice(vehicle.listing.price)}</ListingPrice>}
+                  <ListingTitle>{vehicle.make} {vehicle.model}</ListingTitle>
+                  <ListingDetail>
+                    {vehicle.year}
+                    {vehicle.fuel_type && ` • ${vehicle.fuel_type}`} 
+                    {vehicle.transmission && ` • ${vehicle.transmission}`}
+                    {vehicle.mileage && ` • ${vehicle.mileage.toLocaleString()} miles`}
+                  </ListingDetail>
+                  <Button as={Link} to={`/listings/${vehicle.listing?.id}`} fullWidth>
+                    View Details
+                  </Button>
+                </ListingContent>
+              </ListingCard>
+            ))}
+          </FeaturedListings>
+        ) : (
+          <div style={{ textAlign: 'center', padding: spacing[8] }}>
+            <p>No featured vehicles available at the moment.</p>
+          </div>
+        )}
         
         <ButtonContainer>
-          <Button as={Link} to="/vehicle-lookup" variant="secondary" size="large">
-            Find Your Vehicle
+          <Button as={Link} to="/listings" variant="secondary" size="large">
+            View All Listings
           </Button>
         </ButtonContainer>
       </Section>
