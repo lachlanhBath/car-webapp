@@ -15,6 +15,7 @@ interface VehicleSummary {
   fuel_type: string;
   transmission: string | null;
   mileage?: number;
+  purchase_summary?: string;
 }
 
 interface Listing {
@@ -175,6 +176,75 @@ const SpecLabel = styled.span`
 
 const SpecValue = styled.span`
   font-size: ${typography.fontSize.sm};
+`;
+
+const PurchaseSummaryPreview = styled.div`
+  margin-top: ${spacing[2]};
+  margin-bottom: ${spacing[4]};
+  color: ${colors.text.secondary};
+  font-size: ${typography.fontSize.sm};
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+`;
+
+const AIPoweredContainer = styled.div`
+  position: relative;
+  padding: ${spacing[3]};
+  border-radius: 6px;
+  background-color: rgba(101, 31, 255, 0.05);
+  margin-bottom: ${spacing[4]};
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 6px;
+    padding: 2px;
+    background: linear-gradient(
+      45deg,
+      ${colors.primary.light},
+      ${colors.primary.main},
+      #8f5fff,
+      #6320ee
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: borderBeam 3s ease infinite;
+  }
+  
+  @keyframes borderBeam {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+`;
+
+const AIBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  color: white;
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: ${spacing[2]};
 `;
 
 const PaginationContainer = styled.div`
@@ -532,6 +602,22 @@ const ListingsPage: React.FC = () => {
                       <SpecValue>{listing.vehicle.mileage?.toLocaleString()} miles</SpecValue>
                     </SpecItem>
                   </ListingSpecs>
+                  
+                  {listing.vehicle.purchase_summary && (
+                    <AIPoweredContainer>
+                      <AIBadge>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '4px' }}>
+                          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                          <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                          <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                        </svg>
+                        AI Analysis
+                      </AIBadge>
+                      <PurchaseSummaryPreview>
+                        {listing.vehicle.purchase_summary}
+                      </PurchaseSummaryPreview>
+                    </AIPoweredContainer>
+                  )}
                   
                   <Button 
                     as={Link} 

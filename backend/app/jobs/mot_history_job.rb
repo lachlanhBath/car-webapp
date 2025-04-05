@@ -57,6 +57,8 @@ class MotHistoryJob < ApplicationJob
       Rails.logger.error "Error in MotHistoryJob for vehicle ##{vehicle_id}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
     end
+
+    PurchaseSummaryJob.perform_later(vehicle_id)
   end
 
   private

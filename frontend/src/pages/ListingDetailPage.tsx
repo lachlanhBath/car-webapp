@@ -24,6 +24,7 @@ interface Vehicle {
   tax_due_date?: string;
   mot_status?: string;
   mot_expiry_date?: string;
+  purchase_summary?: string;
 }
 
 interface MOTHistoryEntry {
@@ -631,6 +632,75 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHist
   );
 };
 
+// Add new styled components for the AI purchase summary section
+const AIPurchaseSummarySection = styled.div`
+  grid-column: 1 / -1; // Span all columns
+  margin-top: ${spacing[8]};
+`;
+
+const AIPoweredContainer = styled.div`
+  position: relative;
+  padding: ${spacing[5]};
+  border-radius: 8px;
+  background-color: rgba(101, 31, 255, 0.05);
+  margin-top: ${spacing[4]};
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 8px;
+    padding: 2px;
+    background: linear-gradient(
+      45deg,
+      ${colors.primary.light},
+      ${colors.primary.main},
+      #8f5fff,
+      #6320ee
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: borderBeam 3s ease infinite;
+  }
+  
+  @keyframes borderBeam {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+`;
+
+const AIBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(90deg, ${colors.primary.main}, #6320ee);
+  color: white;
+  font-size: ${typography.fontSize.xs};
+  font-weight: ${typography.fontWeight.medium};
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: ${spacing[3]};
+`;
+
+const PurchaseSummary = styled.div`
+  line-height: 1.7;
+  white-space: pre-line;
+  color: ${colors.text.primary};
+  font-size: ${typography.fontSize.base};
+`;
+
 // Component
 const ListingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -910,7 +980,29 @@ const ListingDetailPage = () => {
         </div>
       </ListingGrid>
       
-      {/* Add Mileage Graph Section - Before MOT History */}
+      {/* Add AI Purchase Summary Section - Before Mileage Graph & MOT History */}
+      {listing.vehicle.purchase_summary ? (
+        <AIPurchaseSummarySection>
+          <DetailSection>
+            <SectionTitle>Purchase Analysis</SectionTitle>
+            <AIPoweredContainer>
+              <AIBadge>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                </svg>
+                AI-Generated Analysis
+              </AIBadge>
+              <PurchaseSummary>
+                {listing.vehicle.purchase_summary}
+              </PurchaseSummary>
+            </AIPoweredContainer>
+          </DetailSection>
+        </AIPurchaseSummarySection>
+      ) : null}
+      
+      {/* Add Mileage Graph Section - After AI summary but before MOT History */}
       {!motLoading && !motError && motHistory.length > 0 && (
         <MileageGraphSection>
           <DetailSection>

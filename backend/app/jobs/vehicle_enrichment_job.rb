@@ -5,23 +5,19 @@ class VehicleEnrichmentJob < ApplicationJob
     # Placeholder for vehicle enrichment implementation
     Rails.logger.info "Running vehicle enrichment job at #{Time.now}"
     
-    # In a real implementation, this would:
-    # 1. Find listings with no vehicle data or incomplete data
-    # 2. For each listing, attempt to extract or enhance vehicle data
-    # 3. Save the enriched data to the Vehicle model
-    # 4. Trigger the MOT history job for vehicles with registration numbers
+    # Find vehicles without purchase summaries
+    vehicles_without_summaries = Vehicle.where(purchase_summary: nil)
+    count = vehicles_without_summaries.count
     
-    # Example code (commented out for now)
-    # Listing.where(vehicle: nil).find_each do |listing|
-    #   vehicle_data = VehicleDataService.extract_from_listing(listing)
-    #   vehicle = listing.create_vehicle(vehicle_data)
-    #   
-    #   if vehicle.persisted? && vehicle.registration.present?
-    #     MotHistoryJob.perform_later(vehicle.id)
-    #   end
-    # end
+    Rails.logger.info "Found #{count} vehicles without purchase summaries"
     
-    # For demo purposes, we'll just trigger the MOT history job
+    # Generate summaries for up to 50 vehicles per run to avoid overwhelming the API
+    vehicles_without_summaries.limit(50).each do |vehicle|
+      PurchaseSummaryJob.perform_later(vehicle.id)
+      Rails.logger.info "Queued purchase summary generation for vehicle ##{vehicle.id}"
+    end
+    
+    # For backwards compatibility, still trigger the MOT history job
     MotHistoryJob.perform_later
   end
 end 

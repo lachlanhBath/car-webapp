@@ -56,7 +56,9 @@ module Api
             model: listing.vehicle.model,
             year: listing.vehicle.year,
             fuel_type: listing.vehicle.fuel_type,
-            transmission: listing.vehicle.transmission
+            transmission: listing.vehicle.transmission,
+            mileage: listing.vehicle.mileage,
+            purchase_summary: listing.vehicle.purchase_summary
           }
         end
         
