@@ -443,14 +443,11 @@ const MileageGraphSection = styled.div`
   margin-top: ${spacing[8]};
 `;
 
-const MileageGraph = styled.div<{ isVisible: boolean }>`
+const MileageGraph = styled.div`
   background-color: ${colors.light.surface};
   border-radius: 12px;
   padding: ${spacing[6]};
   box-shadow: ${shadows.md};
-  opacity: ${props => props.isVisible ? 1 : 0};
-  transform: translateY(${props => props.isVisible ? 0 : '20px'});
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
 `;
 
 const SVGContainer = styled.div`
@@ -485,8 +482,11 @@ const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[]; isVisible: boo
     );
   }
   
+  // Filter out entries with null or undefined odometer values
+  const validHistory = motHistory.filter(entry => entry.odometer !== null && entry.odometer !== undefined);
+  
   // Sort history by date (oldest to newest)
-  const sortedHistory = [...motHistory].sort((a, b) => 
+  const sortedHistory = [...validHistory].sort((a, b) => 
     new Date(a.test_date).getTime() - new Date(b.test_date).getTime()
   );
   
@@ -1882,7 +1882,7 @@ const ListingDetailPage = () => {
                         <MOTTimelineDetails>
                           <MOTTimelineInfo>
                             <MOTSummaryLabel>Odometer Reading</MOTSummaryLabel>
-                            <MOTTimelineMileage>{test.odometer.toLocaleString()} mi</MOTTimelineMileage>
+                            <MOTTimelineMileage>{test.odometer ? test.odometer.toLocaleString() : 'Unknown'} {test.odometer ? 'mi' : ''}</MOTTimelineMileage>
                           </MOTTimelineInfo>
                           
                           {test.expiry_date && (
@@ -2011,7 +2011,11 @@ const AnimatedMileageGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ mot
   
   return (
     <div ref={graphRef}>
-      <MileageGraph isVisible={isVisible}>
+      <MileageGraph style={{
+        opacity: isVisible ? 1 : 0,
+        transform: `translateY(${isVisible ? 0 : '20px'})`,
+        transition: 'opacity 0.6s ease-out, transform 0.6s ease-out'
+      }}>
         <MileageLineGraph motHistory={motHistory} isVisible={isVisible} />
       </MileageGraph>
     </div>
