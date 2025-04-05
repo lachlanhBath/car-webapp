@@ -41,6 +41,7 @@ module Api
           registration: vehicle.registration,
           vin: vehicle.vin,
           mileage: vehicle.mileage,
+          purchase_summary: vehicle.purchase_summary,
           listing: vehicle.listing ? {
             id: vehicle.listing.id,
             title: vehicle.listing.title,
