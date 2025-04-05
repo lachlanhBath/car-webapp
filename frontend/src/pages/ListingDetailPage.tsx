@@ -411,6 +411,226 @@ const ExpandedDetails = styled.div`
   padding-top: ${spacing[4]};
 `;
 
+// Add new styled components for the mileage graph
+const MileageGraphSection = styled.div`
+  grid-column: 1 / -1; // Span all columns
+  margin-top: ${spacing[8]};
+`;
+
+const MileageGraph = styled.div`
+  background-color: ${colors.light.surface};
+  border-radius: 12px;
+  padding: ${spacing[6]};
+  box-shadow: ${shadows.md};
+`;
+
+const SVGContainer = styled.div`
+  width: 100%;
+  height: 300px;
+  margin-top: ${spacing[4]};
+`;
+
+// Add this new component for the mileage graph
+const MileageLineGraph: React.FC<{ motHistory: MOTHistoryEntry[] }> = ({ motHistory }) => {
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  
+  useEffect(() => {
+    if (svgRef.current) {
+      const { width, height } = svgRef.current.getBoundingClientRect();
+      setDimensions({ width, height });
+    }
+  }, []);
+  
+  // Define margin for the graph
+  const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+  const width = dimensions.width - margin.left - margin.right;
+  const height = dimensions.height - margin.top - margin.bottom;
+  
+  // Skip rendering if dimensions are not available yet
+  if (width <= 0 || height <= 0) {
+    return (
+      <SVGContainer>
+        <svg ref={svgRef} width="100%" height="100%" />
+      </SVGContainer>
+    );
+  }
+  
+  // Sort history by date (oldest to newest)
+  const sortedHistory = [...motHistory].sort((a, b) => 
+    new Date(a.test_date).getTime() - new Date(b.test_date).getTime()
+  );
+  
+  // Extract years and mileage data
+  const dataPoints = sortedHistory.map(entry => ({
+    date: new Date(entry.test_date),
+    year: new Date(entry.test_date).getFullYear(),
+    mileage: entry.odometer
+  }));
+  
+  // If we don't have enough data points, show a message
+  if (dataPoints.length < 2) {
+    return (
+      <SVGContainer>
+        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <p>Not enough mileage data to generate a graph.</p>
+          <p>At least 2 MOT tests with odometer readings are required.</p>
+        </div>
+      </SVGContainer>
+    );
+  }
+  
+  // Get min and max values for axes
+  const minYear = Math.min(...dataPoints.map(d => d.year));
+  const maxYear = Math.max(...dataPoints.map(d => d.year));
+  const minMileage = Math.min(...dataPoints.map(d => d.mileage));
+  const maxMileage = Math.max(...dataPoints.map(d => d.mileage));
+  
+  // Create scale functions
+  const xScale = (x: number) => {
+    return ((x - minYear) / (maxYear - minYear || 1)) * width;
+  };
+  
+  const yScale = (y: number) => {
+    return height - ((y - minMileage) / (maxMileage - minMileage || 1)) * height;
+  };
+  
+  // Generate path for the line
+  const pathData = dataPoints.map((point, i) => {
+    const x = xScale(point.year) + margin.left;
+    const y = yScale(point.mileage) + margin.top;
+    return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+  }).join(' ');
+  
+  // Generate x-axis ticks (years)
+  const xTicks = [];
+  for (let year = minYear; year <= maxYear; year++) {
+    const x = xScale(year) + margin.left;
+    xTicks.push(
+      <g key={`x-tick-${year}`} transform={`translate(${x}, ${height + margin.top})`}>
+        <line y2="6" stroke={colors.text.secondary} />
+        <text
+          y="22"
+          textAnchor="middle"
+          fontSize="12"
+          fill={colors.text.secondary}
+        >
+          {year}
+        </text>
+      </g>
+    );
+  }
+  
+  // Generate y-axis ticks (mileage)
+  const yTickCount = 5;
+  const yTicks = [];
+  for (let i = 0; i <= yTickCount; i++) {
+    const mileage = minMileage + (i / yTickCount) * (maxMileage - minMileage);
+    const y = yScale(mileage) + margin.top;
+    yTicks.push(
+      <g key={`y-tick-${i}`} transform={`translate(${margin.left}, ${y})`}>
+        <line x2="-6" stroke={colors.text.secondary} />
+        <text
+          x="-10"
+          dy="0.32em"
+          textAnchor="end"
+          fontSize="12"
+          fill={colors.text.secondary}
+        >
+          {Math.round(mileage).toLocaleString()}
+        </text>
+        <line
+          x2={width}
+          stroke={colors.light.border}
+          strokeWidth="1"
+          strokeDasharray="4,4"
+        />
+      </g>
+    );
+  }
+  
+  return (
+    <SVGContainer>
+      <svg ref={svgRef} width="100%" height="100%">
+        {/* X-axis */}
+        <line
+          x1={margin.left}
+          y1={height + margin.top}
+          x2={width + margin.left}
+          y2={height + margin.top}
+          stroke={colors.text.secondary}
+        />
+        
+        {/* Y-axis */}
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={margin.left}
+          y2={height + margin.top}
+          stroke={colors.text.secondary}
+        />
+        
+        {/* X and Y axis ticks */}
+        {xTicks}
+        {yTicks}
+        
+        {/* Axis labels */}
+        <text
+          x={width / 2 + margin.left}
+          y={height + margin.top + 40}
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="500"
+          fill={colors.text.secondary}
+        >
+          Year
+        </text>
+        
+        <text
+          x={-height / 2 - margin.top}
+          y="15"
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="500"
+          fill={colors.text.secondary}
+          transform="rotate(-90)"
+        >
+          Mileage
+        </text>
+        
+        {/* Line path */}
+        <path
+          d={pathData}
+          fill="none"
+          stroke={colors.primary.main}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Data points */}
+        {dataPoints.map((point, i) => {
+          const x = xScale(point.year) + margin.left;
+          const y = yScale(point.mileage) + margin.top;
+          return (
+            <g key={`point-${i}`}>
+              <circle
+                cx={x}
+                cy={y}
+                r="4"
+                fill="white"
+                stroke={colors.primary.main}
+                strokeWidth="2"
+              />
+              <title>{`Year: ${point.year}, Mileage: ${point.mileage.toLocaleString()}`}</title>
+            </g>
+          );
+        })}
+      </svg>
+    </SVGContainer>
+  );
+};
+
 // Component
 const ListingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -428,7 +648,7 @@ const ListingDetailPage = () => {
     if (id) {
       setLoading(true);
       listings.getListingById(id)
-        .then(response => {
+        .then((response: any) => {
           console.log('Listing detail response:', response);
           // API might return the listing directly or nested in data.listing
           const listingData = response?.listing || response;
@@ -449,7 +669,7 @@ const ListingDetailPage = () => {
             setError('Failed to load listing details');
           }
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error('Error fetching listing:', err);
           setError('An error occurred while fetching the listing');
         })
@@ -466,14 +686,14 @@ const ListingDetailPage = () => {
     // If the vehicle already has an ID, use it directly
     if (listing?.vehicle?.id) {
       vehicles.getVehicleMOTHistory(listing.vehicle.id)
-        .then(historyData => {
+        .then((historyData: any) => {
           if (historyData && historyData.mot_histories) {
             setMotHistory(historyData.mot_histories);
           } else {
             setMotHistory([]);
           }
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error('Error fetching MOT history:', err);
           setMotError('Could not retrieve MOT history');
         })
@@ -483,21 +703,21 @@ const ListingDetailPage = () => {
     } else {
       // Otherwise lookup by registration
       vehicles.lookupVehicleByRegistration(registration)
-        .then(vehicleData => {
+        .then((vehicleData: any) => {
           if (vehicleData && vehicleData.vehicle && vehicleData.vehicle.id) {
             return vehicles.getVehicleMOTHistory(vehicleData.vehicle.id);
           } else {
             throw new Error('Vehicle ID not found');
           }
         })
-        .then(historyData => {
+        .then((historyData: any) => {
           if (historyData && historyData.mot_histories) {
             setMotHistory(historyData.mot_histories);
           } else {
             setMotHistory([]);
           }
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error('Error fetching MOT history:', err);
           setMotError('Could not retrieve MOT history');
         })
@@ -690,7 +910,19 @@ const ListingDetailPage = () => {
         </div>
       </ListingGrid>
       
-      {/* MOT History Section - Now outside the grid for full width */}
+      {/* Add Mileage Graph Section - Before MOT History */}
+      {!motLoading && !motError && motHistory.length > 0 && (
+        <MileageGraphSection>
+          <DetailSection>
+            <SectionTitle>Mileage History</SectionTitle>
+            <MileageGraph>
+              <MileageLineGraph motHistory={motHistory} />
+            </MileageGraph>
+          </DetailSection>
+        </MileageGraphSection>
+      )}
+      
+      {/* MOT History Section - Now after the mileage graph */}
       {!motLoading && !motError && motHistory.length > 0 && (
         <MOTHistorySection>
           <DetailSection>
@@ -738,7 +970,7 @@ const ListingDetailPage = () => {
                   const hasFailures = test.failure_reasons && (
                     Array.isArray(test.failure_reasons) 
                       ? test.failure_reasons.length > 0 
-                      : typeof test.failure_reasons === 'string' && test.failure_reasons.trim() !== ''
+                      : typeof test.failure_reasons === 'string' && test.failure_reasons.toString().trim() !== ''
                   );
                   
                   return (
