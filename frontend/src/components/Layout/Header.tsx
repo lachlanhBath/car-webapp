@@ -35,7 +35,7 @@ const Logo = styled(Link)`
   letter-spacing: ${typography.letterSpacing.tight};
   display: flex;
   align-items: center;
-  gap: ${spacing[2]};
+  gap: ${spacing[3]};
   
   &:hover {
     color: ${colors.primary.main};
@@ -44,7 +44,7 @@ const Logo = styled(Link)`
 `;
 
 const LogoImg = styled.img`
-  height: 40px;
+  height: 48px;
   width: auto;
 `;
 
@@ -55,6 +55,7 @@ const BrandText = styled.div`
 
 const BrandName = styled.span`
   line-height: 1;
+  font-size: ${typography.fontSize['3xl']};
 `;
 
 const Tagline = styled.span`
