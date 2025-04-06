@@ -199,6 +199,73 @@ module Scrapers
       end
     end
 
+    def scrape_autotrader_url(url)
+      start_browser
+
+      begin
+        puts "Processing Autotrader URL: #{url}"
+        
+        # Extract the listing ID from the URL for later identification
+        source_id = extract_id_from_url(url)
+        
+        # Check if this listing already exists in our database
+        existing_listing = Listing.find_by(source_id: source_id)
+        if existing_listing
+          puts "Listing with source_id #{source_id} already exists in database, ID: #{existing_listing.id}"
+          stop_browser
+          
+          # Return the existing listing ID
+          return {
+            success: true,
+            listing_id: existing_listing.id,
+            message: "Listing already exists in database"
+          }
+        end
+        
+        # Scrape the listing details
+        result = scrape_single_url(url)
+        
+        # Stop the browser before continuing with background jobs
+        stop_browser
+        
+        if result
+          # Find the newly created listing
+          listing = Listing.find_by(source_id: source_id)
+          
+          if listing
+            # Kick off the background processing pipeline
+            ProcessListingImagesJob.perform_later(listing.id)
+            
+            return {
+              success: true,
+              listing_id: listing.id,
+              message: "Successfully scraped listing and started processing"
+            }
+          else
+            return {
+              success: false,
+              message: "Failed to find created listing in database after scraping"
+            }
+          end
+        else
+          return {
+            success: false,
+            message: "Failed to scrape listing from provided URL"
+          }
+        end
+      rescue => e
+        stop_browser
+        puts "Error scraping URL #{url}: #{e.message}"
+        debug(e.backtrace.join("\n"))
+        
+        return {
+          success: false,
+          message: "Error occurred: #{e.message}",
+          error: e.message
+        }
+      end
+    end
+
     private
 
     def start_browser

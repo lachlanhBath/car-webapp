@@ -8,6 +8,8 @@ interface ApiContextType {
   listings: {
     getListings: (params?: ListingsParams) => Promise<any>;
     getListingById: (id: string) => Promise<any>;
+    processAutotraderUrl: (url: string) => Promise<any>;
+    checkProcessingStatus: (listingId: string) => Promise<any>;
   };
   vehicles: {
     getVehicleById: (id: string) => Promise<any>;

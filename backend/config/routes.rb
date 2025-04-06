@@ -16,7 +16,14 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # Listings
-      resources :listings, only: [:index, :show]
+      resources :listings, only: [:index, :show] do
+        collection do
+          post :process_url
+        end
+        member do
+          get :check_processing_status
+        end
+      end
 
       # Vehicles
       resources :vehicles, only: [:show] do

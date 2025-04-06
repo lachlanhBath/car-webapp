@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
 import { colors, spacing, typography, shadows } from '../styles/styleGuide';
@@ -43,13 +43,15 @@ interface MOTHistory {
 // Styled components
 const PageContainer = styled.div`
   width: 100%;
+  min-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
 `;
 
 const PageHeader = styled.div`
   position: relative;
   background-color: ${colors.light.background};
   padding: ${spacing[12]} ${spacing[6]} ${spacing[8]};
-  margin-bottom: ${spacing[8]};
   overflow: hidden;
   
   &::before {
@@ -114,9 +116,13 @@ const PageHeaderContent = styled.div`
 `;
 
 const PageContent = styled.div`
-  max-width: 1200px;
+  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 ${spacing[6]} ${spacing[6]};
+  padding: ${spacing[8]} ${spacing[6]} ${spacing[12]};
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Title = styled(motion.h1)`
@@ -493,18 +499,300 @@ const ExpandedDetails = styled.div`
   padding-top: ${spacing[4]};
 `;
 
+// Add new styled components for URL input
+const AutotraderSection = styled.div`
+  margin-top: ${spacing[6]};
+  text-align: center;
+`;
+
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: ${spacing[6]} 0;
+  color: ${colors.text.secondary};
+  
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: ${colors.dark.border};
+  }
+  
+  span {
+    padding: 0 ${spacing[4]};
+    font-size: ${typography.fontSize.sm};
+  }
+`;
+
+const UrlInputForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing[6]};
+  width: 100%;
+`;
+
+const InputWrapper = styled.div`
+  width: 100%;
+`;
+
+const ButtonWrapper = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const Instructions = styled.p`
+  color: ${colors.text.secondary};
+  margin-bottom: ${spacing[4]};
+  line-height: 1.6;
+`;
+
+const ProcessingContainer = styled.div`
+  margin-top: ${spacing[8]};
+  background-color: white;
+  border-radius: 12px;
+  padding: ${spacing[8]};
+  box-shadow: ${shadows.default};
+  text-align: center;
+`;
+
+const ProcessingStatus = styled.div`
+  margin-top: ${spacing[4]};
+  text-align: center;
+  padding: ${spacing[4]};
+  background-color: ${colors.dark.surface};
+  border-radius: 8px;
+  
+  h3 {
+    margin-bottom: ${spacing[2]};
+  }
+  
+  p {
+    color: ${colors.text.secondary};
+  }
+`;
+
+const LoadingAnimation = styled(motion.div)`
+  width: 100%;
+  height: 4px;
+  background-color: ${colors.primary.main}20;
+  border-radius: 2px;
+  margin: ${spacing[4]} 0;
+  overflow: hidden;
+  position: relative;
+`;
+
+const LoadingBar = styled(motion.div)`
+  height: 100%;
+  background-color: ${colors.primary.main};
+  border-radius: 2px;
+`;
+
+// Add FormContainer styled component
+const FormContainer = styled.div`
+  background-color: white;
+  border-radius: 12px;
+  padding: ${spacing[8]};
+  box-shadow: ${shadows.default};
+  margin-top: ${spacing[4]};
+`;
+
 // Main component
 const VehicleLookupPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { vehicles } = useApi();
+  const { vehicles, listings } = useApi();
   const { id } = useParams<{ id: string }>();
-  const registrationParam = searchParams.get('registration');
+  const navigate = useNavigate();
+  const urlParam = searchParams.get('url');
   
-  const [registration, setRegistration] = useState(registrationParam || '');
+  const [autotraderUrl, setAutotraderUrl] = useState(urlParam || '');
   const [vehicleData, setVehicleData] = useState<Vehicle | null>(null);
   const [motHistory, setMotHistory] = useState<MOTHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingListingId, setProcessingListingId] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
+  const MAX_POLL_COUNT = 30; // Maximum number of polls (about 2 minutes at 4s intervals)
+  
+  // Process Autotrader URL
+  const processAutotraderUrl = useCallback((url: string) => {
+    if (!url.trim()) return;
+    
+    setLoading(true);
+    setError(null);
+    setProcessingStatus('Submitting URL for processing...');
+    setPollCount(0); // Reset poll count when starting a new URL process
+    
+    listings.processAutotraderUrl(url)
+      .then(data => {
+        // The response is already the data due to the axios interceptor
+        console.log('Response from processAutotraderUrl:', data);
+        
+        // Check if we have a valid response
+        if (data) {
+          // Check if response indicates success
+          if (data.success === true) {
+            if (data.listing_id) {
+              // We have a listing_id, start polling
+              setProcessingListingId(data.listing_id.toString());
+              setProcessingStatus(data.message || 'URL submitted successfully. Processing has started...');
+              setIsPolling(true);
+              setError(null); // Clear any existing errors
+            } else {
+              // Success but no listing_id - unusual but handle it
+              setProcessingStatus('URL submitted successfully, waiting for processing to start...');
+              setIsPolling(false);
+              setTimeout(() => {
+                // Try again after a short delay
+                setProcessingStatus('Checking status...');
+                window.location.reload();
+              }, 5000);
+            }
+          } else if (data.error) {
+            // Explicit error from the server
+            console.error('Server returned error:', data.error);
+            setError(data.error);
+            setProcessingStatus(null);
+            setIsPolling(false);
+          } else {
+            // Undefined state
+            console.warn('Unexpected response format:', data);
+            setProcessingStatus('Received ambiguous response. Will try to continue...');
+            
+            // If we have a listing ID despite other issues, try to use it
+            if (data.listing_id) {
+              setProcessingListingId(data.listing_id.toString());
+              setIsPolling(true);
+            } else {
+              setError('Server returned an unexpected response format');
+            }
+          }
+        } else {
+          // No data in the response
+          console.error('Empty response:', data);
+          setError('Server returned empty response');
+          setProcessingStatus(null);
+          setIsPolling(false);
+        }
+      })
+      .catch(err => {
+        console.error('Error processing Autotrader URL:', err);
+        
+        // Try to extract the most useful error message
+        let errorMessage = 'Failed to process the Autotrader URL.';
+        if (err.status && err.message) {
+          errorMessage += ` Error ${err.status}: ${err.message}`;
+        } else if (err.message) {
+          errorMessage += ' ' + err.message;
+        }
+        
+        setError(errorMessage);
+        setProcessingStatus(null);
+        setIsPolling(false);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [listings]);
+  
+  // Memoized version of checkProcessingStatus function
+  const checkProcessingStatus = useCallback((listingId: string) => {
+    console.log(`Checking processing status for listing ${listingId}, poll #${pollCount+1}`);
+    
+    listings.checkProcessingStatus(listingId)
+      .then(data => {
+        console.log('Processing status response:', data);
+        
+        // The data is already extracted by the axios interceptor
+        if (data) {
+          // Clear any existing errors since we got a response
+          setError(null);
+          
+          if (data.processing === true) {
+            // Still processing
+            setProcessingStatus(data.status || 'Processing... This may take a minute or two.');
+          } else if (data.processing === false) {
+            // Processing complete
+            setProcessingStatus('Processing complete! Redirecting...');
+            setIsPolling(false);
+            
+            // Redirect to the listing page instead of the vehicle page
+            let redirectPath = '';
+            
+            // Always redirect to the listing page
+            if (data.listing_id) {
+              redirectPath = `/listings/${data.listing_id}`;
+            } else {
+              // Default fallback to listing detail if we have listing ID
+              redirectPath = `/listings/${listingId}`;
+            }
+            
+            // Show success message
+            setProcessingStatus(`Vehicle data has been successfully processed! Redirecting to listing details...`);
+            
+            // Give user a moment to see the completion message before redirecting
+            setTimeout(() => {
+              navigate(redirectPath);
+            }, 1500);
+          } else {
+            // Unknown processing state - but we still have a response, so continue polling
+            console.warn('Unknown processing state received:', data);
+            setProcessingStatus('Processing in progress... waiting for status update');
+          }
+        } else {
+          // No data in response but no error either - continue polling
+          console.warn('Empty response data from check_processing_status');
+          setProcessingStatus('Waiting for server response...');
+        }
+      })
+      .catch(err => {
+        console.error('Error checking processing status:', err);
+        
+        // If 404, the listing was not found
+        if (err.status === 404) {
+          console.warn('Listing not found, stopping polling');
+          setProcessingStatus('The listing could not be found. Please try with a different URL.');
+          setIsPolling(false);
+          setError('Listing not found. It may have been deleted or failed to process.');
+          return;
+        }
+        
+        // For temporary errors, keep polling but show status
+        setProcessingStatus(`Error checking status (${err.message || 'network error'}). Retrying...`);
+        
+        // If we've had too many consecutive errors, give up
+        if (pollCount > 5) {
+          console.warn('Too many consecutive errors, stopping polling');
+          setIsPolling(false);
+          setError('Too many errors while checking status. Please reload the page to try again.');
+        }
+      });
+  }, [listings, navigate, setError, setIsPolling, setProcessingStatus, pollCount]);
+
+  // Check processing status regularly if we're waiting for a listing to be processed
+  useEffect(() => {
+    let interval: number | null = null;
+    
+    if (processingListingId && isPolling) {
+      interval = setInterval(() => {
+        if (pollCount >= MAX_POLL_COUNT) {
+          // Stop polling after max attempts
+          setIsPolling(false);
+          setProcessingStatus('Processing is taking longer than expected. The vehicle may still be processing in the background. You can refresh the page later to check progress.');
+          clearInterval(interval || undefined);
+          return;
+        }
+        
+        checkProcessingStatus(processingListingId);
+        setPollCount(count => count + 1);
+      }, 4000); // Poll every 4 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [processingListingId, isPolling, pollCount, MAX_POLL_COUNT, checkProcessingStatus]);
   
   useEffect(() => {
     // If we have an ID parameter, fetch the vehicle details
@@ -534,53 +822,25 @@ const VehicleLookupPage: React.FC = () => {
           setLoading(false);
         });
     }
-    // If we have a registration parameter, look up the vehicle
-    else if (registrationParam) {
-      lookupVehicle(registrationParam);
+    // If we have a URL parameter, process the Autotrader URL
+    else if (urlParam) {
+      processAutotraderUrl(urlParam);
     }
-  }, [id, registrationParam, vehicles]);
-  
-  const lookupVehicle = (reg: string) => {
-    setLoading(true);
-    setError(null);
-    
-    // Lookup vehicle data
-    vehicles.lookupVehicleByRegistration(reg)
-      .then(response => {
-        if (response.data && response.data.vehicle) {
-          setVehicleData(response.data.vehicle);
-          return vehicles.getVehicleMOTHistory(response.data.vehicle.id);
-        } else {
-          throw new Error('Vehicle not found');
-        }
-      })
-      .then(response => {
-        if (response.data && response.data.mot_histories) {
-          setMotHistory(response.data.mot_histories);
-        }
-      })
-      .catch(err => {
-        console.error('Error looking up vehicle:', err);
-        setError('Failed to find vehicle information for this registration number. Please check the registration and try again.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
+  }, [id, urlParam, vehicles, listings, processAutotraderUrl]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registration.trim()) return;
+    if (!autotraderUrl.trim()) return;
     
     // Update URL params
-    setSearchParams({ registration });
+    setSearchParams({ url: autotraderUrl });
     
-    // Do the lookup
-    lookupVehicle(registration);
+    // Process the URL
+    processAutotraderUrl(autotraderUrl);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRegistration(e.target.value);
+  const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutotraderUrl(e.target.value);
   };
 
   const formatDate = (dateString: string) => {
@@ -617,91 +877,6 @@ const VehicleLookupPage: React.FC = () => {
       
       return daysUntilExpiry <= 30 ? 'warning' : 'valid';
     }
-  };
-
-  const fetchVehicleInfo = (registration: string) => {
-    setLoading(true);
-    setError(null);
-    
-    vehicles.lookupVehicleByRegistration(registration)
-      .then(response => {
-        console.log('Vehicle lookup response:', response);
-        
-        // Check if we have a valid vehicle response
-        if (response && response.vehicle) {
-          const vehicleData = response.vehicle;
-          
-          // Ensure vehicle has all necessary properties with fallbacks
-          const processedVehicle = {
-            ...vehicleData,
-            make: vehicleData.make || 'Unknown',
-            model: vehicleData.model || 'Unknown',
-            year: vehicleData.year || null,
-            fuel_type: vehicleData.fuel_type || 'Unknown',
-            transmission: vehicleData.transmission || 'Unknown',
-            engine_size: vehicleData.engine_size || null,
-            color: vehicleData.color || null,
-            body_type: vehicleData.body_type || null,
-            registration: vehicleData.registration || registration,
-            mileage: vehicleData.mileage || null,
-            tax_status: vehicleData.tax_status || 'Unknown',
-            tax_due_date: vehicleData.tax_due_date || null,
-            mot_status: vehicleData.mot_status || 'Unknown',
-            mot_expiry_date: vehicleData.mot_expiry_date || null
-          };
-          
-          setVehicleData(processedVehicle);
-          
-          // If the vehicle has an ID, fetch its MOT history
-          if (vehicleData.id) {
-            fetchMotHistory(vehicleData.id);
-          } else {
-            setMotHistory([]);
-          }
-        } else {
-          setError('No vehicle found with that registration');
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching vehicle data:', err);
-        setError('Error fetching vehicle data. Please try again.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
-  
-  const fetchMotHistory = (vehicleId: string) => {
-    setLoading(true);
-    
-    vehicles.getVehicleMOTHistory(vehicleId)
-      .then(response => {
-        console.log('MOT history response:', response);
-        
-        if (response && response.mot_histories && Array.isArray(response.mot_histories)) {
-          // Ensure each MOT history entry has proper data structure
-          const processedHistory = response.mot_histories.map((entry: any) => ({
-            id: entry.id || `mot-${Math.random().toString(36).substr(2, 9)}`,
-            test_date: entry.test_date || new Date().toISOString(),
-            expiry_date: entry.expiry_date || null,
-            odometer: entry.odometer || 0,
-            result: entry.result || 'Unknown',
-            advisory_notes: entry.advisory_notes || [],
-            failure_reasons: entry.failure_reasons || null
-          }));
-          
-          setMotHistory(processedHistory);
-        } else {
-          setMotHistory([]);
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching MOT history:', err);
-        setMotHistory([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
   };
 
   return (
@@ -770,40 +945,82 @@ const VehicleLookupPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            Vehicle Lookup
+            Vehicle Import
           </Title>
           <Subtitle
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            Enter a registration number to check MOT history, tax status and more
+            Import vehicle data from Autotrader listings
           </Subtitle>
-          <SearchForm onSubmit={handleSubmit}>
-            <Input
-              placeholder="Enter registration (e.g. AB12CDE)"
-              value={registration}
-              onChange={handleInputChange}
-              disabled={loading}
-            />
-            <Button type="submit" disabled={loading || !registration.trim()}>
-              {loading ? 'Loading...' : 'Search'}
-            </Button>
-          </SearchForm>
         </PageHeaderContent>
       </PageHeader>
       
       <PageContent>
-        {loading ? (
-          <EmptyState>
-            <h2>Looking up vehicle information...</h2>
-          </EmptyState>
-        ) : error ? (
+        <FormContainer>
+          <h2>Enter an Autotrader URL</h2>
+          <Instructions>
+            Paste an Autotrader car listing URL below. Our system will extract all vehicle information, including registration, MOT history, and estimated running costs.
+          </Instructions>
+          
+          <UrlInputForm onSubmit={handleUrlSubmit}>
+            <InputWrapper>
+              <Input
+                placeholder="Enter Autotrader URL (e.g. https://www.autotrader.co.uk/car-details/...)"
+                value={autotraderUrl}
+                onChange={handleUrlInputChange}
+                disabled={loading || isPolling}
+                style={{ width: '100%' }}
+              />
+            </InputWrapper>
+            <ButtonWrapper>
+              <Button 
+                type="submit" 
+                disabled={loading || !autotraderUrl.trim() || isPolling}
+                style={{ minWidth: '150px' }}
+              >
+                {loading ? 'Processing...' : 'Process URL'}
+              </Button>
+            </ButtonWrapper>
+          </UrlInputForm>
+        </FormContainer>
+        
+        {processingStatus && (
+          <ProcessingContainer>
+            <h3>Processing Autotrader URL</h3>
+            <p>{processingStatus}</p>
+            <LoadingAnimation>
+              <LoadingBar
+                animate={{ 
+                  x: ["-100%", "100%"]
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.5,
+                  ease: "easeInOut",
+                  repeatType: "loop"
+                }}
+              />
+            </LoadingAnimation>
+          </ProcessingContainer>
+        )}
+        
+        {error && (
           <ErrorState>
-            <h2>Vehicle Not Found</h2>
+            <h2>Import Failed</h2>
             <p>{error}</p>
           </ErrorState>
-        ) : vehicleData ? (
+        )}
+        
+        {!processingStatus && !error && !loading && (
+          <EmptyState>
+            <h2>Start Importing Vehicle Data</h2>
+            <p>Enter an Autotrader listing URL above to begin the import process.</p>
+          </EmptyState>
+        )}
+        
+        {vehicleData && (
           <ResultsContainer>
             <VehicleCard>
               <VehicleHeader>
@@ -950,11 +1167,6 @@ const VehicleLookupPage: React.FC = () => {
               )}
             </MOTHistoryCard>
           </ResultsContainer>
-        ) : (
-          <EmptyState>
-            <h2>Enter a Registration Number</h2>
-            <p>Enter a UK vehicle registration number to view its details and MOT history.</p>
-          </EmptyState>
         )}
       </PageContent>
     </PageContainer>
