@@ -2063,12 +2063,6 @@ const ListingDetailPage = () => {
               )}
             </SpecsGrid>
             
-            {listing.vehicle.registration && (
-              <Link to={`/vehicles/lookup?registration=${listing.vehicle.registration}`}>
-                <Button style={{ marginBottom: spacing[4] }}>View Vehicle History</Button>
-              </Link>
-            )}
-            
             {listing.source_url && (
               <Button as="a" href={listing.source_url} target="_blank" rel="noopener noreferrer">
                 View Original Listing

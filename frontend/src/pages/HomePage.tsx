@@ -245,6 +245,16 @@ const ListingContent = styled.div`
 const ListingTitle = styled.h3`
   font-size: ${typography.fontSize.lg};
   margin-bottom: ${spacing[2]};
+  color: ${colors.text.primary};
+  
+  a {
+    color: ${colors.text.primary};
+    text-decoration: none;
+    
+    &:hover {
+      color: ${colors.text.primary};
+    }
+  }
 `;
 
 const ListingPrice = styled.div`
