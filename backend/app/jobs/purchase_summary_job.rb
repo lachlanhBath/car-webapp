@@ -25,7 +25,8 @@ class PurchaseSummaryJob < ApplicationJob
       vehicle.update(
         purchase_summary: summary,
         mot_repair_estimate: repair_estimate,
-        expected_lifetime: lifetime
+        expected_lifetime: lifetime,
+        transmission: vehicle.listing.transmission
       )
 
       Rails.logger.info "Updated vehicle ##{vehicle.id} with AI purchase summary"

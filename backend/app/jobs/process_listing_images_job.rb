@@ -46,7 +46,8 @@ class ProcessListingImagesJob < ApplicationJob
               registration_confidence: result[:registration_confidence],
               registration_source: "ai_vision",
               registration_image_url: result[:registration_image_url],
-              price: listing.price
+              price: listing.price,
+              transmission: listing.transmission
             })
 
             Rails.logger.info "Created duplicate vehicle for listing ##{listing.id} with only registration: #{registration}"

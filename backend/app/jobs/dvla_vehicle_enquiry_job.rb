@@ -31,7 +31,6 @@ class DvlaVehicleEnquiryJob < ApplicationJob
           fuel_type: dvla_data[:fuel_type],
           year: dvla_data[:year],
           engine_size: dvla_data[:engine_size],
-          transmission: dvla_data[:transmission] || vehicle.transmission,
           co2_emissions: dvla_data[:co2_emissions],
           tax_status: dvla_data[:tax_status],
           tax_due_date: dvla_data[:tax_due_date],

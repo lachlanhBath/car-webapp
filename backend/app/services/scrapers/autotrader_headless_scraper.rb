@@ -7,7 +7,7 @@ module Scrapers
     SEARCH_PATH = "/car-search".freeze
 
     def initialize(logger: nil, debug: false)
-      super(logger: logger, debug: debug)
+      super
       @driver = nil
     end
 
@@ -55,53 +55,48 @@ module Scrapers
           # Handle case where primary selector doesn't find elements
           if listing_cards.empty?
             puts "Primary selector found no listings, trying fallback selectors..."
-            
+
             # Try fallback selectors
             fallback_selectors = [
-              '.search-page__results li', 
-              '.search-results__result',
-              'li.search-page__result',
+              ".search-page__results li",
+              ".search-results__result",
+              "li.search-page__result",
               'li[data-testid="search-card"]',
               'article[data-testid="search-result"]',
-              'div.search-listing',
-              'li.product-card',
-              'div.vehicle-listing',
-              'article.advert-card'
+              "div.search-listing",
+              "li.product-card",
+              "div.vehicle-listing",
+              "article.advert-card"
             ]
-            
+
             fallback_selectors.each do |selector|
-              begin
-                elements = @driver.find_elements(css: selector)
-                if elements.any?
-                  puts "Found #{elements.size} cards using fallback selector: #{selector}"
-                  listing_cards = elements
-                  break
-                end
-              rescue => e
-                puts "Error with selector #{selector}: #{e.message}"
+              elements = @driver.find_elements(css: selector)
+              if elements.any?
+                puts "Found #{elements.size} cards using fallback selector: #{selector}"
+                listing_cards = elements
+                break
               end
+            rescue => e
+              puts "Error with selector #{selector}: #{e.message}"
             end
           end
-          
+
           # Process all cards we found
           if listing_cards.any?
             listing_cards.each do |card|
               # Find links within each card
-              begin
-                links = card.find_elements(tag_name: "a")
-                links.each do |link|
-                  begin
-                    href = link.attribute("href")
-                    next unless href && href.include?("/car-details/")
-                    
-                    page_urls << href unless page_urls.include?(href)
-                  rescue => e
-                    puts "Error getting href from link: #{e.message}"
-                  end
-                end
+
+              links = card.find_elements(tag_name: "a")
+              links.each do |link|
+                href = link.attribute("href")
+                next unless href && href.include?("/car-details/")
+
+                page_urls << href unless page_urls.include?(href)
               rescue => e
-                puts "Error finding links in card: #{e.message}"
+                puts "Error getting href from link: #{e.message}"
               end
+            rescue => e
+              puts "Error finding links in card: #{e.message}"
             end
           else
             # Last resort - get all links on the page
@@ -109,33 +104,30 @@ module Scrapers
             begin
               all_links = @driver.find_elements(tag_name: "a")
               all_links.each do |link|
-                begin
-                  href = link.attribute("href")
-                  next unless href && href.include?("/car-details/")
-                  
-                  page_urls << href unless page_urls.include?(href)
-                rescue => e
-                  puts "Error processing generic link: #{e.message}"
-                end
+                href = link.attribute("href")
+                next unless href && href.include?("/car-details/")
+
+                page_urls << href unless page_urls.include?(href)
+              rescue => e
+                puts "Error processing generic link: #{e.message}"
               end
             rescue => e
               puts "Error getting all links: #{e.message}"
             end
           end
-          
+
           # Add unique URLs to our collection
           page_urls.uniq!
           puts "Found #{page_urls.size} unique car detail URLs on page #{page}"
-          
+
           # Add to main URL collection, respecting max_listings
           remaining = max_listings - urls.size
           urls += page_urls.first(remaining)
-          
+
           puts "Added #{[page_urls.size, remaining].min} URLs from page #{page}, total: #{urls.size}/#{max_listings}"
-          
+
           # Break if we've collected enough URLs
           break if urls.size >= max_listings
-
         rescue => e
           puts "Error scraping search page #{page}: #{e.message}"
           debug(e.backtrace.join("\n"))
@@ -146,24 +138,21 @@ module Scrapers
 
       # Process each listing URL
       urls.each_with_index do |url, index|
-        begin
-          puts "Processing listing #{index + 1}/#{urls.size}: #{url}"
+        puts "Processing listing #{index + 1}/#{urls.size}: #{url}"
 
-          result = scrape_single_url(url)
-          if result
-            listings_scraped += 1
-            puts "Successfully scraped listing #{index + 1}: #{url}"
-          else
-            puts "Failed to scrape listing #{index + 1}: #{url}"
-          end
-          
-          # Brief pause between processing listings
-          sleep(rand(0.5..1.5)) unless index == urls.size - 1
-          
-        rescue => e
-          puts "Error processing listing #{url}: #{e.message}"
-          debug(e.backtrace.join("\n"))
+        result = scrape_single_url(url)
+        if result
+          listings_scraped += 1
+          puts "Successfully scraped listing #{index + 1}: #{url}"
+        else
+          puts "Failed to scrape listing #{index + 1}: #{url}"
         end
+
+        # Brief pause between processing listings
+        sleep(rand(0.5..1.5)) unless index == urls.size - 1
+      rescue => e
+        puts "Error processing listing #{url}: #{e.message}"
+        debug(e.backtrace.join("\n"))
       end
 
       # Generate vehicle data and MOT histories
@@ -365,15 +354,15 @@ module Scrapers
 
       location = location_element ? location_element.text.strip : nil
       puts "Found location: #{location}"
-      
+
       # Extract transmission from Gearbox field
       transmission = nil
-      
+
       # First try using the exact structure provided
       # Look for div containing a span with text "Gearbox" and another span with data-testid="details"
-      doc.css('div').each do |div|
+      doc.css("div").each do |div|
         term_span = div.at_css('span.term_details, span:contains("Gearbox")')
-        if term_span && term_span.text.strip == 'Gearbox'
+        if term_span && term_span.text.strip == "Gearbox"
           value_span = div.at_css('span[data-testid="details"], span.value_details')
           if value_span
             transmission = value_span.text.strip
@@ -382,15 +371,15 @@ module Scrapers
           end
         end
       end
-      
+
       # If not found, try more general selectors
       if transmission.nil?
         # Look for any div with Gearbox text and a value nearby
-        doc.css('div, span, p').each do |element|
-          if element.text.include?('Gearbox')
+        doc.css("div, span, p").each do |element|
+          if element.text.include?("Gearbox")
             # Look for the next element or child element with value
-            value_element = element.next_element || element.at_css('span')
-            if value_element && ['Manual', 'Automatic', 'Semi-Auto', 'CVT', 'DSG'].any? { |t| value_element.text.include?(t) }
+            value_element = element.next_element || element.at_css("span")
+            if value_element && ["Manual", "Automatic", "Semi-Auto", "CVT", "DSG"].any? { |t| value_element.text.include?(t) }
               transmission = value_element.text.strip
               puts "Found transmission from general selector: #{transmission}"
               break
@@ -398,23 +387,23 @@ module Scrapers
           end
         end
       end
-      
+
       # If still not found, try looking for key-value pairs in specs/details
       if transmission.nil?
         details_selectors = [
-          'ul.key-specifications li',
-          'ul.vehicle-specs li',
-          'div.specs-list div',
+          "ul.key-specifications li",
+          "ul.vehicle-specs li",
+          "div.specs-list div",
           'div[class*="key-specifications"] li',
           'div[class*="specs"] li',
           'div[class*="details"] li'
         ]
-        
+
         details_selectors.each do |selector|
           doc.css(selector).each do |item|
-            if item.text.include?('Gearbox') || item.text.include?('Transmission')
-              item.css('span').each do |span|
-                if ['Manual', 'Automatic', 'Semi-Auto', 'CVT', 'DSG'].any? { |t| span.text.include?(t) }
+            if item.text.include?("Gearbox") || item.text.include?("Transmission")
+              item.css("span").each do |span|
+                if ["Manual", "Automatic", "Semi-Auto", "CVT", "DSG"].any? { |t| span.text.include?(t) }
                   transmission = span.text.strip
                   puts "Found transmission from specs list: #{transmission}"
                   break
@@ -426,8 +415,8 @@ module Scrapers
           break if transmission
         end
       end
-      
-      puts "Final transmission value: #{transmission || 'Not found'}"
+
+      puts "Final transmission value: #{transmission || "Not found"}"
 
       # Description using specific selector
       description_title = doc.at_css('[data-gui="advert-description-title"]')
@@ -542,37 +531,16 @@ module Scrapers
         location: listing_data[:location],
         image_urls: listing_data[:image_urls],
         post_date: listing_data[:post_date],
-        status: listing_data[:status]
+        status: listing_data[:status],
+        transmission: listing_data[:transmission] # Store transmission on the listing as well
       )
       
       # Add any tags/categories
       if listing_data[:specs].present?
         listing.specs = listing_data[:specs]
       end
-      
-      # Save the listing
-      if listing.save
-        puts "Saved listing: #{listing.title}"
-        
-        # Handle vehicle creation or update
-        vehicle = listing.vehicle || listing.build_vehicle
-        
-        # Extract or use provided transmission
-        if listing_data[:transmission].present?
-          vehicle.transmission = listing_data[:transmission]
-          puts "Setting transmission directly: #{listing_data[:transmission]}"
-        end
-        
-        # The listing after_commit callback will handle rest of vehicle creation and registration extraction
-        if vehicle.changed?
-          vehicle.save
-          puts "Updated vehicle with transmission: #{vehicle.transmission}"
-        end
-      else
-        puts "Error saving listing: #{listing.errors.full_messages.join(', ')}"
-      end
-      
-      listing
+
+      listing.save
     end
   end
 end

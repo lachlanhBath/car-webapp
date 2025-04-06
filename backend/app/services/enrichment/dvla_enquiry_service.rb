@@ -37,7 +37,6 @@ module Enrichment
             fuel_type: data[:fuelType]&.titleize,
             year: data[:yearOfManufacture],
             engine_size: data[:engineCapacity],
-            transmission: extract_transmission(data),
             co2_emissions: data[:co2Emissions],
             tax_status: data[:taxStatus],
             tax_due_date: parse_date(data[:taxDueDate]),
@@ -72,12 +71,6 @@ module Enrichment
       rescue
         nil
       end
-    end
-
-    def extract_transmission(data)
-      # DVLA API may not directly provide transmission info, this is a placeholder
-      # In a real system, this might use various data points to determine transmission
-      nil
     end
 
     # Generate sample data for development/testing
