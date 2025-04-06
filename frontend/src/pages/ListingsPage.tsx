@@ -772,19 +772,8 @@ const ListingsPage: React.FC = () => {
     listingsApi.getListings(params)
       .then((response) => {
         if (response && Array.isArray(response.listings)) {
-          // Ensure each listing has a vehicle property
-          const processedListings = response.listings.map((listing: any) => ({
-            ...listing,
-            vehicle: listing.vehicle || {
-              make: 'Unknown',
-              model: 'Unknown',
-              year: 'N/A',
-              fuel_type: 'Unknown',
-              transmission: 'Unknown'
-            }
-          }));
-          
-          setListings(processedListings);
+          // All listings from API will now have vehicle data, no need for fallback
+          setListings(response.listings);
           
           // Handle meta data if it exists
           if (response.meta) {

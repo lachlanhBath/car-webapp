@@ -2,15 +2,13 @@ module Api
   module V1
     class ListingsController < Api::BaseController
       def index
+        # Start with active and recent listings, and always include vehicle associations
         @listings = Listing.active.recent.includes(:vehicle)
         
-        # First, check if any vehicle-related filters are present
-        if vehicle_filters_present?
-          # Include vehicle join for all queries if any vehicle filter is present
-          @listings = @listings.joins(:vehicle)
-        end
+        # Always join with vehicles and filter to only include listings with vehicles
+        @listings = @listings.joins(:vehicle).where.not(vehicles: { id: nil })
         
-        # Now apply all filters
+        # Apply all filters
         
         # Title/keyword filters
         if params[:keyword].present?
@@ -81,6 +79,13 @@ module Api
       
       def show
         @listing = Listing.includes(:vehicle).find(params[:id])
+        
+        # Return 404 if listing doesn't have an associated vehicle
+        if @listing.vehicle.nil?
+          render json: { error: "Listing with complete vehicle information not found" }, status: :not_found
+          return
+        end
+        
         render json: listing_json(@listing, detailed: true)
       end
       
