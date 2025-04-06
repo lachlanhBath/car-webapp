@@ -112,24 +112,99 @@ const QUICK_FILTERS = [
 
 // Styled components
 const PageContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: ${spacing[6]};
-  
-  @media (max-width: 768px) {
-    padding: ${spacing[4]};
-  }
+  width: 100%;
 `;
 
 const PageHeader = styled.div`
+  position: relative;
+  background-color: ${colors.light.background};
+  padding: ${spacing[12]} ${spacing[6]} ${spacing[8]};
   margin-bottom: ${spacing[8]};
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 100%);
+    z-index: 1;
+  }
+  
+  @media (max-width: 768px) {
+    padding: ${spacing[8]} ${spacing[4]} ${spacing[6]};
+  }
 `;
 
-const Title = styled.h1`
+const PageHeaderBackground = styled(motion.div)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]});
+  overflow: hidden;
+  z-index: 0;
+  
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      ellipse at center,
+      ${colors.primary.main}25 0%,
+      ${colors.primary.main}10 30%,
+      ${colors.primary.main}00 60%
+    );
+    transform-origin: center center;
+    z-index: 1;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 35%, ${colors.primary.main}15 0%, ${colors.primary.main}00 25%),
+      radial-gradient(circle at 75% 70%, ${colors.primary.light}10 0%, ${colors.primary.light}00 25%);
+    z-index: 2;
+  }
+`;
+
+const PageHeaderContent = styled.div`
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const PageContent = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 ${spacing[6]} ${spacing[6]};
+  
+  @media (max-width: 768px) {
+    padding: 0 ${spacing[4]} ${spacing[4]};
+  }
+`;
+
+const Title = styled(motion.h1)`
   font-size: ${typography.fontSize['4xl']};
   font-weight: ${typography.fontWeight.bold};
+  margin-bottom: ${spacing[4]};
   color: ${colors.text.primary};
-  margin-bottom: ${spacing[6]};
+  background: linear-gradient(to right, ${colors.text.primary}, ${colors.primary.main});
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(50, 205, 50, 0.1);
   position: relative;
   
   &::after {
@@ -151,11 +226,11 @@ const FilterBadge = styled.span`
   margin-left: ${spacing[3]};
   font-size: ${typography.fontSize.base};
   font-weight: ${typography.fontWeight.semibold};
-  color: white;
-  background-color: ${colors.primary.main};
+  color: ${colors.text.primary};
   padding: ${spacing[1]} ${spacing[3]};
   border-radius: 20px;
   vertical-align: middle;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 `;
 
 const QuickFiltersContainer = styled.div`
@@ -567,6 +642,41 @@ const PaginationButton = styled(Button)<{ $active?: boolean }>`
   }
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: ${spacing[8]};
+  text-align: center;
+  
+  p {
+    margin-top: ${spacing[4]};
+    color: ${colors.text.secondary};
+  }
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid ${colors.primary.main}30;
+  border-top: 4px solid ${colors.primary.main};
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const FilterButtons = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${spacing[4]};
+  margin-top: ${spacing[6]};
+`;
+
 // Main component
 const ListingsPage: React.FC = () => {
   const { listings: listingsApi } = useApi();
@@ -591,6 +701,7 @@ const ListingsPage: React.FC = () => {
     transmission: ''
   });
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
 
   useEffect(() => {
     fetchListings();
@@ -893,77 +1004,124 @@ const ListingsPage: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader>
-        <FadeIn direction="down" once={true}>
-          <Title>
+        <PageHeaderBackground
+          animate={{ 
+            background: [
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`,
+              `linear-gradient(125deg, ${colors.light.surface}, ${colors.gray[50]}, ${colors.light.background})`,
+              `linear-gradient(125deg, ${colors.gray[50]}, ${colors.light.background}, ${colors.light.surface})`,
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`
+            ]
+          }} 
+          transition={{ 
+            duration: 45, 
+            repeat: Infinity,
+            repeatType: "mirror",
+            ease: "linear"
+          }}
+        >
+          <motion.div
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              zIndex: 2,
+              overflow: "hidden"
+            }}
+          >
+            {Array.from({ length: 10 }).map((_, i) => (
+              <motion.div
+                key={i}
+                style={{
+                  position: "absolute",
+                  background: i % 3 === 0 
+                    ? `${colors.primary.main}12`
+                    : i % 3 === 1
+                      ? `${colors.primary.light}10`
+                      : `${colors.secondary.main}08`,
+                  borderRadius: "50%",
+                  width: `${15 + (i % 5) * 8}px`,
+                  height: `${15 + (i % 5) * 8}px`,
+                  top: `${10 + (i * 8) % 80}%`,
+                  left: `${10 + (i * 9) % 85}%`,
+                  filter: "blur(6px)"
+                }}
+                animate={{
+                  y: [0, i % 2 === 0 ? -10 : -15, 0],
+                  x: [0, i % 3 === 0 ? 8 : i % 3 === 1 ? -8 : 12, 0],
+                  opacity: [0.2, 0.35, 0.2]
+                }}
+                transition={{
+                  duration: 12 + i % 8,
+                  repeat: Infinity,
+                  delay: i * 0.6,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </motion.div>
+        </PageHeaderBackground>
+        
+        <PageHeaderContent>
+          <Title
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
             Vehicle Listings
-            {activeFilters > 0 && (
-              <span style={{ 
-                marginLeft: spacing[3], 
-                fontSize: typography.fontSize.lg,
-                color: colors.primary.main,
-                backgroundColor: `${colors.primary.main}20`,
-                padding: `${spacing[1]} ${spacing[3]}`,
-                borderRadius: '16px',
-              }}>
-                {activeFilters} {activeFilters === 1 ? 'filter' : 'filters'} active
-              </span>
-            )}
-            {!loading && pagination.totalCount > 0 && (
-              <span style={{ 
-                marginLeft: spacing[3], 
-                fontSize: typography.fontSize.lg,
-                color: colors.text.secondary,
-              }}>
-                {pagination.totalCount} {pagination.totalCount === 1 ? 'vehicle' : 'vehicles'} found
-              </span>
+            {!loading && listings.length > 0 && (
+              <FilterBadge>{pagination.totalCount.toLocaleString()} vehicles</FilterBadge>
             )}
           </Title>
           
-          <StaggerContainer staggerAmount={0.05} delay={0.2}>
-            <QuickFiltersContainer>
-              {QUICK_FILTERS.map((quickFilter, index) => (
-                <QuickFilterChip
-                  key={index}
-                  $active={
-                    Object.entries(quickFilter.filters).some(([key, value]) => 
-                      Array.isArray(value) 
-                        ? (filters[key as keyof typeof filters] as any)?.includes(value[0])
-                        : filters[key as keyof typeof filters] === value
-                    )
-                  }
-                  onClick={() => handleQuickFilter(quickFilter.filters)}
-                  whileHover={{ 
-                    y: -2, 
-                    borderColor: colors.primary.main,
-                    backgroundColor: `${colors.primary.main}10`
-                  }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  variants={{}}
-                >
-                  {quickFilter.label}
-                </QuickFilterChip>
-              ))}
-            </QuickFiltersContainer>
-          </StaggerContainer>
+          <QuickFiltersContainer>
+            {QUICK_FILTERS.map((filter, index) => (
+              <QuickFilterChip
+                key={filter.id}
+                $active={activeQuickFilter === filter.id}
+                onClick={() => handleQuickFilter(filter.filters)}
+                whileHover={{ 
+                  y: -2, 
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+                }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + index * 0.05, duration: 0.4 }}
+              >
+                {filter.label}
+              </QuickFilterChip>
+            ))}
+          </QuickFiltersContainer>
           
-          <AnimatedSection direction="up" delay={0.3}>
-            <FilterSection>
-              <FilterSectionHeader onClick={toggleFilters}>
-                <FilterSectionTitle>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 0.55 0.45 1 1 1h2c0.55 0 1-0.45 1-1v-6s3.72-4.8 5.74-7.39C20.25 4.95 19.78 4 18.95 4H5.04C4.21 4 3.74 4.95 4.25 5.61z" fill="currentColor"/>
-                  </svg>
-                  Filter Vehicles {activeFilters > 0 && `(${activeFilters} active)`}
-                </FilterSectionTitle>
-                <FilterArrow $expanded={filtersExpanded}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </FilterArrow>
-              </FilterSectionHeader>
-
-              <FilterContent $expanded={filtersExpanded}>
+          <FilterSection>
+            <FilterSectionHeader onClick={toggleFilters}>
+              <h2>Advanced Filters</h2>
+              <FilterArrow $expanded={filtersExpanded}>
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{
+                    transform: filtersExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.3s ease'
+                  }}
+                >
+                  <path
+                    d="M6 9L12 15L18 9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </FilterArrow>
+            </FilterSectionHeader>
+            
+            {filtersExpanded && (
+              <>
                 <FilterGrid>
                   <Input 
                     label="Make"
@@ -1034,40 +1192,35 @@ const ListingsPage: React.FC = () => {
                   />
                 </FilterGrid>
                 
-                <ActionButtons>
-                  <MotionButton 
-                    variant="secondary" 
+                <FilterButtons>
+                  <Button
+                    variant="secondary"
                     onClick={handleResetFilters}
-                    disabled={filterLoading || activeFilters === 0}
-                    animateOnHover={true}
-                    animateOnTap={true}
+                    disabled={filterLoading}
                   >
                     Reset Filters
-                  </MotionButton>
-                  <MotionButton 
+                  </Button>
+                  <Button
                     onClick={handleApplyFilters}
                     disabled={filterLoading}
-                    animateOnHover={true}
-                    animateOnTap={true}
                   >
                     {filterLoading ? 'Applying...' : 'Apply Filters'}
-                  </MotionButton>
-                </ActionButtons>
-              </FilterContent>
-            </FilterSection>
-          </AnimatedSection>
-        </FadeIn>
+                  </Button>
+                </FilterButtons>
+              </>
+            )}
+          </FilterSection>
+        </PageHeaderContent>
       </PageHeader>
       
-      {loading ? (
-        <>
-          <LoadingSkeleton />
-          <LoadingSkeleton />
-          <LoadingSkeleton />
-        </>
-      ) : listings.length > 0 ? (
-        <>
-          <StaggerContainer staggerAmount={0.05} delay={0.3}>
+      <PageContent>
+        {loading ? (
+          <LoadingContainer>
+            <LoadingSpinner />
+            <p>Loading listings...</p>
+          </LoadingContainer>
+        ) : listings.length > 0 ? (
+          <>
             <ListingsGrid>
               {listings.map(listing => {
                 // Ensure we have a valid listing object with required properties
@@ -1232,45 +1385,43 @@ const ListingsPage: React.FC = () => {
                 );
               })}
             </ListingsGrid>
-          </StaggerContainer>
-          
-          <AnimatedSection direction="up" delay={0.4} distance={20}>
+            
             <PaginationContainer>
               {renderPaginationButtons()}
             </PaginationContainer>
-          </AnimatedSection>
-        </>
-      ) : (
-        <EmptyState
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.h3
-            initial={{ y: -10 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.2 }}
+          </>
+        ) : (
+          <EmptyState
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
           >
-            No listings found
-          </motion.h3>
-          <motion.p
-            initial={{ y: -10 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            Try adjusting your filters to see more results
-          </motion.p>
-          <motion.div
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Button onClick={handleResetFilters}>
-              Reset Filters
-            </Button>
-          </motion.div>
-        </EmptyState>
-      )}
+            <motion.h3
+              initial={{ y: -10 }}
+              animate={{ y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              No listings found
+            </motion.h3>
+            <motion.p
+              initial={{ y: -10 }}
+              animate={{ y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              Try adjusting your filters to see more results
+            </motion.p>
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Button onClick={handleResetFilters}>
+                Reset Filters
+              </Button>
+            </motion.div>
+          </EmptyState>
+        )}
+      </PageContent>
     </PageContainer>
   );
 };

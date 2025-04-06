@@ -46,9 +46,12 @@ const PageContainer = styled.div`
   width: 100%;
 `;
 
-const Hero = styled(motion.section)`
-  background-color: ${colors.dark.background};
-  padding: ${spacing[16]} ${spacing[6]};
+const HeroSection = styled(motion.section)`
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  background-color: ${colors.light.background};
+  padding: ${spacing[12]} ${spacing[6]} ${spacing[8]};
   position: relative;
   overflow: hidden;
   
@@ -59,12 +62,13 @@ const Hero = styled(motion.section)`
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(180deg, rgba(18, 18, 18, 0.2) 0%, rgba(18, 18, 18, 0.9) 100%);
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 100%);
     z-index: 1;
   }
   
   @media (max-width: 768px) {
-    padding: ${spacing[12]} ${spacing[4]};
+    padding: ${spacing[8]} ${spacing[4]} ${spacing[6]};
+    min-height: 50vh;
   }
 `;
 
@@ -74,10 +78,39 @@ const HeroBackground = styled(motion.div)`
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('https://images.unsplash.com/photo-1597404294360-feeeda04612e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80');
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.4);
+  background: linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]});
+  overflow: hidden;
+  z-index: 0;
+  
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      ellipse at center,
+      ${colors.primary.main}25 0%,
+      ${colors.primary.main}10 30%,
+      ${colors.primary.main}00 60%
+    );
+    transform-origin: center center;
+    z-index: 1;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 35%, ${colors.primary.main}15 0%, ${colors.primary.main}00 25%),
+      radial-gradient(circle at 75% 70%, ${colors.primary.light}10 0%, ${colors.primary.light}00 25%);
+    z-index: 2;
+  }
 `;
 
 const HeroContent = styled(motion.div)`
@@ -92,7 +125,12 @@ const HeroTitle = styled(motion.h1)`
   font-size: ${typography.fontSize['5xl']};
   font-weight: ${typography.fontWeight.bold};
   margin-bottom: ${spacing[4]};
-  color: white;
+  color: ${colors.text.primary};
+  background: linear-gradient(to right, ${colors.text.primary}, ${colors.primary.main});
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(50, 205, 50, 0.1);
+  letter-spacing: ${typography.letterSpacing.tight};
   
   @media (max-width: 768px) {
     font-size: ${typography.fontSize['4xl']};
@@ -103,7 +141,9 @@ const HeroSubtitle = styled(motion.p)`
   font-size: ${typography.fontSize['xl']};
   color: ${colors.text.secondary};
   max-width: 700px;
-  margin: 0 auto ${spacing[8]};
+  margin: 0 auto ${spacing[4]};
+  line-height: ${typography.lineHeight.relaxed};
+  text-shadow: none;
   
   @media (max-width: 768px) {
     font-size: ${typography.fontSize.lg};
@@ -111,17 +151,18 @@ const HeroSubtitle = styled(motion.p)`
 `;
 
 const SearchBox = styled(motion.div)`
-  background-color: ${colors.dark.surface};
+  background-color: ${colors.light.surface};
   border-radius: ${spacing[3]};
-  padding: ${spacing[6]};
+  padding: ${spacing[4]} ${spacing[6]};
   max-width: 800px;
   margin: 0 auto;
-  box-shadow: ${shadows.xl};
+  box-shadow: ${shadows.lg};
+  border: 1px solid ${colors.light.border};
 `;
 
 const SearchTitle = styled.h2`
   font-size: ${typography.fontSize['2xl']};
-  margin-bottom: ${spacing[4]};
+  margin-bottom: ${spacing[3]};
   text-align: center;
 `;
 
@@ -142,18 +183,26 @@ const ButtonContainer = styled.div`
 `;
 
 const Section = styled.section`
-  padding: ${spacing[16]} ${spacing[6]};
+  padding: ${spacing[8]} ${spacing[6]} ${spacing[12]};
   max-width: 1200px;
   margin: 0 auto;
   
+  &:first-of-type {
+    margin-top: -${spacing[8]};
+  }
+  
   @media (max-width: 768px) {
-    padding: ${spacing[12]} ${spacing[4]};
+    padding: ${spacing[6]} ${spacing[4]} ${spacing[8]};
+    
+    &:first-of-type {
+      margin-top: -${spacing[6]};
+    }
   }
 `;
 
 const SectionTitle = styled.h2`
   font-size: ${typography.fontSize['3xl']};
-  margin-bottom: ${spacing[8]};
+  margin-bottom: ${spacing[5]};
   text-align: center;
 `;
 
@@ -475,7 +524,7 @@ const QuickFiltersContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: ${spacing[2]};
-  margin-bottom: ${spacing[6]};
+  margin-bottom: ${spacing[4]};
 `;
 
 const QuickFilterChip = styled(motion.button)<{ $active?: boolean }>`
@@ -638,21 +687,89 @@ const HomePage: React.FC = () => {
 
   return (
     <PageContainer>
-      <Hero
+      <HeroSection
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
         <HeroBackground 
           animate={{ 
-            scale: [1, 1.05, 1],
+            background: [
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`,
+              `linear-gradient(125deg, ${colors.light.surface}, ${colors.gray[50]}, ${colors.light.background})`,
+              `linear-gradient(125deg, ${colors.gray[50]}, ${colors.light.background}, ${colors.light.surface})`,
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`
+            ]
           }} 
           transition={{ 
-            duration: 20, 
+            duration: 45, 
             repeat: Infinity,
-            repeatType: "reverse" 
+            repeatType: "mirror",
+            ease: "linear"
           }} 
-        />
+        >
+          <motion.div
+            style={{
+              position: "absolute",
+              top: "-50%",
+              left: "-50%",
+              width: "200%",
+              height: "200%",
+              background: `radial-gradient(ellipse at center, ${colors.primary.main}30 0%, ${colors.primary.main}15 30%, ${colors.primary.main}00 60%)`,
+              zIndex: 1
+            }}
+            animate={{
+              transform: ["rotate(0deg) scale(1)", "rotate(360deg) scale(1.05)", "rotate(720deg) scale(1)"]
+            }}
+            transition={{
+              duration: 90,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          />
+          
+          {/* Add floating particles effect */}
+          <motion.div
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              zIndex: 2,
+              overflow: "hidden"
+            }}
+          >
+            {Array.from({ length: 10 }).map((_, i) => (
+              <motion.div
+                key={i}
+                style={{
+                  position: "absolute",
+                  background: i % 3 === 0 
+                    ? `${colors.primary.main}12`
+                    : i % 3 === 1
+                      ? `${colors.primary.light}10`
+                      : `${colors.secondary.main}08`,
+                  borderRadius: "50%",
+                  width: `${15 + (i % 5) * 8}px`,
+                  height: `${15 + (i % 5) * 8}px`,
+                  top: `${10 + (i * 8) % 80}%`,
+                  left: `${10 + (i * 9) % 85}%`,
+                  filter: "blur(6px)"
+                }}
+                animate={{
+                  y: [0, i % 2 === 0 ? -10 : -15, 0],
+                  x: [0, i % 3 === 0 ? 8 : i % 3 === 1 ? -8 : 12, 0],
+                  opacity: [0.2, 0.35, 0.2]
+                }}
+                transition={{
+                  duration: 12 + i % 8,
+                  repeat: Infinity,
+                  delay: i * 0.6,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </motion.div>
+        </HeroBackground>
         <HeroContent>
           <HeroTitle
             initial={{ opacity: 0, y: -20 }}
@@ -668,36 +785,8 @@ const HomePage: React.FC = () => {
           >
             Get instant access to MOT history, tax status, and explore our vehicle database
           </HeroSubtitle>
-          
-          <SearchBox
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-            whileHover={{ 
-              y: -5, 
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)' 
-            }}
-          >
-            <SearchTitle>Check vehicle history by registration number</SearchTitle>
-            <SearchForm onSubmit={handleRegistrationSubmit}>
-              <Input
-                placeholder="Enter registration (e.g. AB12CDE)"
-                value={registration}
-                onChange={handleRegistrationChange}
-                fullWidth
-              />
-              <Button 
-                type="submit" 
-                size="large" 
-                disabled={!registration.trim() || loading}
-                isLoading={loading}
-              >
-                Search
-              </Button>
-            </SearchForm>
-          </SearchBox>
         </HeroContent>
-      </Hero>
+      </HeroSection>
       
       <Section>
         <motion.div

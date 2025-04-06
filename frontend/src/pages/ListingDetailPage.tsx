@@ -1245,6 +1245,11 @@ const ListingDetailPage = () => {
   // Move the forecastPeriod state hook inside the component
   const [forecastPeriod, setForecastPeriod] = useState(12);
 
+  // Add effect to scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Update the monthly increase factors to a flat 1.5% per month for all categories
   const MONTHLY_INCREASE = {
     fuel: 1.015, // 1.5% increase per month for fuel
