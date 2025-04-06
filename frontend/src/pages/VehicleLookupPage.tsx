@@ -6,6 +6,7 @@ import { colors, spacing, typography, shadows } from '../styles/styleGuide';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Card from '../components/UI/Card';
+import { motion } from 'framer-motion';
 
 // Types
 interface Vehicle {
@@ -41,14 +42,100 @@ interface MOTHistory {
 
 // Styled components
 const PageContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: ${spacing[6]};
+  width: 100%;
 `;
 
-const Title = styled.h1`
+const PageHeader = styled.div`
+  position: relative;
+  background-color: ${colors.light.background};
+  padding: ${spacing[12]} ${spacing[6]} ${spacing[8]};
+  margin-bottom: ${spacing[8]};
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 100%);
+    z-index: 1;
+  }
+`;
+
+const PageHeaderBackground = styled(motion.div)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]});
+  overflow: hidden;
+  z-index: 0;
+  
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      ellipse at center,
+      ${colors.primary.main}25 0%,
+      ${colors.primary.main}10 30%,
+      ${colors.primary.main}00 60%
+    );
+    transform-origin: center center;
+    z-index: 1;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 35%, ${colors.primary.main}15 0%, ${colors.primary.main}00 25%),
+      radial-gradient(circle at 75% 70%, ${colors.primary.light}10 0%, ${colors.primary.light}00 25%);
+    z-index: 2;
+  }
+`;
+
+const PageHeaderContent = styled.div`
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+`;
+
+const PageContent = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 ${spacing[6]} ${spacing[6]};
+`;
+
+const Title = styled(motion.h1)`
   font-size: ${typography.fontSize['4xl']};
+  font-weight: ${typography.fontWeight.bold};
   margin-bottom: ${spacing[4]};
+  color: ${colors.text.primary};
+  background: linear-gradient(to right, ${colors.text.primary}, ${colors.primary.main});
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(50, 205, 50, 0.1);
+`;
+
+const Subtitle = styled(motion.p)`
+  font-size: ${typography.fontSize.xl};
+  color: ${colors.text.secondary};
+  max-width: 700px;
+  margin: 0 auto ${spacing[6]};
+  line-height: ${typography.lineHeight.relaxed};
 `;
 
 const SearchForm = styled.form`
@@ -619,191 +706,257 @@ const VehicleLookupPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <Title>Vehicle Lookup</Title>
-      
-      <SearchForm onSubmit={handleSubmit}>
-        <Input
-          label="Registration Number"
-          placeholder="Enter UK registration (e.g. AB12CDE)"
-          value={registration}
-          onChange={handleInputChange}
-          fullWidth
-        />
-        <Button 
-          type="submit" 
-          size="large" 
-          disabled={!registration.trim() || loading}
-          isLoading={loading}
+      <PageHeader>
+        <PageHeaderBackground
+          animate={{ 
+            background: [
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`,
+              `linear-gradient(125deg, ${colors.light.surface}, ${colors.gray[50]}, ${colors.light.background})`,
+              `linear-gradient(125deg, ${colors.gray[50]}, ${colors.light.background}, ${colors.light.surface})`,
+              `linear-gradient(125deg, ${colors.light.background}, ${colors.light.surface}, ${colors.gray[100]})`
+            ]
+          }} 
+          transition={{ 
+            duration: 45, 
+            repeat: Infinity,
+            repeatType: "mirror",
+            ease: "linear"
+          }}
         >
-          Search
-        </Button>
-      </SearchForm>
+          <motion.div
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              zIndex: 2,
+              overflow: "hidden"
+            }}
+          >
+            {Array.from({ length: 10 }).map((_, i) => (
+              <motion.div
+                key={i}
+                style={{
+                  position: "absolute",
+                  background: i % 3 === 0 
+                    ? `${colors.primary.main}12`
+                    : i % 3 === 1
+                      ? `${colors.primary.light}10`
+                      : `${colors.secondary.main}08`,
+                  borderRadius: "50%",
+                  width: `${15 + (i % 5) * 8}px`,
+                  height: `${15 + (i % 5) * 8}px`,
+                  top: `${10 + (i * 8) % 80}%`,
+                  left: `${10 + (i * 9) % 85}%`,
+                  filter: "blur(6px)"
+                }}
+                animate={{
+                  y: [0, i % 2 === 0 ? -10 : -15, 0],
+                  x: [0, i % 3 === 0 ? 8 : i % 3 === 1 ? -8 : 12, 0],
+                  opacity: [0.2, 0.35, 0.2]
+                }}
+                transition={{
+                  duration: 12 + i % 8,
+                  repeat: Infinity,
+                  delay: i * 0.6,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </motion.div>
+        </PageHeaderBackground>
+        <PageHeaderContent>
+          <Title
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
+            Vehicle Lookup
+          </Title>
+          <Subtitle
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            Enter a registration number to check MOT history, tax status and more
+          </Subtitle>
+          <SearchForm onSubmit={handleSubmit}>
+            <Input
+              placeholder="Enter registration (e.g. AB12CDE)"
+              value={registration}
+              onChange={handleInputChange}
+              disabled={loading}
+            />
+            <Button type="submit" disabled={loading || !registration.trim()}>
+              {loading ? 'Loading...' : 'Search'}
+            </Button>
+          </SearchForm>
+        </PageHeaderContent>
+      </PageHeader>
       
-      {loading ? (
-        <EmptyState>
-          <h2>Looking up vehicle information...</h2>
-        </EmptyState>
-      ) : error ? (
-        <ErrorState>
-          <h2>Vehicle Not Found</h2>
-          <p>{error}</p>
-        </ErrorState>
-      ) : vehicleData ? (
-        <ResultsContainer>
-          <VehicleCard>
-            <VehicleHeader>
-              <div>
-                <VehicleTitle>{vehicleData.make} {vehicleData.model} {vehicleData.variant}</VehicleTitle>
-                <VehicleSubtitle>Registration: {vehicleData.registration}</VehicleSubtitle>
-              </div>
-              <Button as={Link} to="/listings" variant="secondary">
-                Find similar vehicles
-              </Button>
-            </VehicleHeader>
+      <PageContent>
+        {loading ? (
+          <EmptyState>
+            <h2>Looking up vehicle information...</h2>
+          </EmptyState>
+        ) : error ? (
+          <ErrorState>
+            <h2>Vehicle Not Found</h2>
+            <p>{error}</p>
+          </ErrorState>
+        ) : vehicleData ? (
+          <ResultsContainer>
+            <VehicleCard>
+              <VehicleHeader>
+                <div>
+                  <VehicleTitle>{vehicleData.make} {vehicleData.model} {vehicleData.variant}</VehicleTitle>
+                  <VehicleSubtitle>Registration: {vehicleData.registration}</VehicleSubtitle>
+                </div>
+              </VehicleHeader>
+              
+              <StatusSection>
+                <StatusCard $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
+                  <StatusTitle>Tax Status</StatusTitle>
+                  <StatusValue $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
+                    {vehicleData.tax_status}
+                  </StatusValue>
+                  {vehicleData.tax_due_date && (
+                    <div>Valid until {formatDate(vehicleData.tax_due_date)}</div>
+                  )}
+                </StatusCard>
+                
+                <StatusCard $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
+                  <StatusTitle>MOT Status</StatusTitle>
+                  <StatusValue $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
+                    {vehicleData.mot_status}
+                  </StatusValue>
+                  {vehicleData.mot_expiry_date && (
+                    <div>Valid until {formatDate(vehicleData.mot_expiry_date)}</div>
+                  )}
+                </StatusCard>
+              </StatusSection>
+            </VehicleCard>
             
-            <StatusSection>
-              <StatusCard $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
-                <StatusTitle>Tax Status</StatusTitle>
-                <StatusValue $status={getTaxStatus(vehicleData.tax_status, vehicleData.tax_due_date)}>
-                  {vehicleData.tax_status}
-                </StatusValue>
-                <DetailLabel>Due: {formatDate(vehicleData.tax_due_date)}</DetailLabel>
-              </StatusCard>
-              
-              <StatusCard $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
-                <StatusTitle>MOT Status</StatusTitle>
-                <StatusValue $status={getMotStatus(vehicleData.mot_status, vehicleData.mot_expiry_date)}>
-                  {vehicleData.mot_status}
-                </StatusValue>
-                <DetailLabel>Expires: {formatDate(vehicleData.mot_expiry_date)}</DetailLabel>
-              </StatusCard>
-            </StatusSection>
-          </VehicleCard>
-          
-          <DetailCard>
-            <DetailTitle>Vehicle Details</DetailTitle>
-            <DetailGrid>
-              <DetailSection>
-                <DetailItem>
-                  <DetailLabel>Make</DetailLabel>
-                  <DetailValue>{vehicleData.make}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Model</DetailLabel>
-                  <DetailValue>{vehicleData.model}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Variant</DetailLabel>
-                  <DetailValue>{vehicleData.variant}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Year</DetailLabel>
-                  <DetailValue>{vehicleData.year}</DetailValue>
-                </DetailItem>
-              </DetailSection>
-              
-              <DetailSection>
-                <DetailItem>
-                  <DetailLabel>Fuel Type</DetailLabel>
-                  <DetailValue>{vehicleData.fuel_type}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Transmission</DetailLabel>
-                  <DetailValue>{vehicleData.transmission}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Engine Size</DetailLabel>
-                  <DetailValue>{vehicleData.engine_size}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Body Type</DetailLabel>
-                  <DetailValue>{vehicleData.body_type}</DetailValue>
-                </DetailItem>
-              </DetailSection>
-              
-              <DetailSection>
-                <DetailItem>
-                  <DetailLabel>Color</DetailLabel>
-                  <DetailValue>{vehicleData.color}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Doors</DetailLabel>
-                  <DetailValue>{vehicleData.doors}</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>Mileage</DetailLabel>
-                  <DetailValue>{vehicleData.mileage?.toLocaleString() || 'Not available'} miles</DetailValue>
-                </DetailItem>
-                <DetailItem>
-                  <DetailLabel>VIN</DetailLabel>
-                  <DetailValue>{vehicleData.vin}</DetailValue>
-                </DetailItem>
-              </DetailSection>
-            </DetailGrid>
-          </DetailCard>
-          
-          <MOTHistoryCard>
-            <DetailTitle>MOT History</DetailTitle>
+            <DetailCard>
+              <DetailTitle>Vehicle Details</DetailTitle>
+              <DetailGrid>
+                <DetailSection>
+                  <DetailItem>
+                    <DetailLabel>Make</DetailLabel>
+                    <DetailValue>{vehicleData.make}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Model</DetailLabel>
+                    <DetailValue>{vehicleData.model}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Variant</DetailLabel>
+                    <DetailValue>{vehicleData.variant}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Year</DetailLabel>
+                    <DetailValue>{vehicleData.year}</DetailValue>
+                  </DetailItem>
+                </DetailSection>
+                
+                <DetailSection>
+                  <DetailItem>
+                    <DetailLabel>Fuel Type</DetailLabel>
+                    <DetailValue>{vehicleData.fuel_type}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Transmission</DetailLabel>
+                    <DetailValue>{vehicleData.transmission}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Engine Size</DetailLabel>
+                    <DetailValue>{vehicleData.engine_size}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Body Type</DetailLabel>
+                    <DetailValue>{vehicleData.body_type}</DetailValue>
+                  </DetailItem>
+                </DetailSection>
+                
+                <DetailSection>
+                  <DetailItem>
+                    <DetailLabel>Color</DetailLabel>
+                    <DetailValue>{vehicleData.color}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Doors</DetailLabel>
+                    <DetailValue>{vehicleData.doors}</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>Mileage</DetailLabel>
+                    <DetailValue>{vehicleData.mileage?.toLocaleString() || 'Not available'} miles</DetailValue>
+                  </DetailItem>
+                  <DetailItem>
+                    <DetailLabel>VIN</DetailLabel>
+                    <DetailValue>{vehicleData.vin}</DetailValue>
+                  </DetailItem>
+                </DetailSection>
+              </DetailGrid>
+            </DetailCard>
             
-            {motHistory.length > 0 ? (
-              <TimelineContainer>
-                {motHistory.map((test) => (
-                  <TimelineItem key={test.id} $result={test.result.toLowerCase() as 'pass' | 'fail'}>
-                    <TimelineDate>{formatDate(test.test_date)}</TimelineDate>
-                    <TimelineContent>
-                      <TimelineResult $result={test.result.toLowerCase() as 'pass' | 'fail'}>
-                        {test.result.toUpperCase()}
-                      </TimelineResult>
-                      <TimelineMileage>
-                        Odometer reading: {test.odometer.toLocaleString()} miles
-                      </TimelineMileage>
-                      
-                      {test.result.toLowerCase() === 'fail' && test.failure_reasons && (
-                        <AdvisorySection>
-                          <AdvisoryTitle>Failure Reason(s):</AdvisoryTitle>
-                          <AdvisoryList>
-                            {Array.isArray(test.failure_reasons) ? (
-                              test.failure_reasons.map((reason, index) => (
-                                <FailureItem key={`${test.id}-${index}`}>{reason}</FailureItem>
-                              ))
-                            ) : (
-                              <FailureItem>{test.failure_reasons}</FailureItem>
-                            )}
-                          </AdvisoryList>
-                        </AdvisorySection>
-                      )}
-                      
-                      {test.advisory_notes && (
-                        <AdvisorySection>
-                          <AdvisoryTitle>Advisory Notes:</AdvisoryTitle>
-                          <AdvisoryList>
-                            {Array.isArray(test.advisory_notes) ? (
-                              test.advisory_notes.map((note, index) => (
-                                <AdvisoryItem key={`${test.id}-${index}`}>{note}</AdvisoryItem>
-                              ))
-                            ) : (
-                              <AdvisoryItem>{test.advisory_notes}</AdvisoryItem>
-                            )}
-                          </AdvisoryList>
-                        </AdvisorySection>
-                      )}
-                    </TimelineContent>
-                  </TimelineItem>
-                ))}
-              </TimelineContainer>
-            ) : (
-              <EmptyState>
+            <MOTHistoryCard>
+              <DetailTitle>MOT History</DetailTitle>
+              {motHistory.length > 0 ? (
+                <TimelineContainer>
+                  {motHistory.map((entry) => (
+                    <TimelineItem 
+                      key={entry.id} 
+                      $result={entry.result.toLowerCase() === 'pass' ? 'pass' : 'fail'}
+                    >
+                      <TimelineDate>{formatDate(entry.test_date)}</TimelineDate>
+                      <TimelineContent>
+                        <TimelineResult $result={entry.result.toLowerCase() === 'pass' ? 'pass' : 'fail'}>
+                          {entry.result}
+                        </TimelineResult>
+                        <div>Odometer: {entry.odometer.toLocaleString()} miles</div>
+                        
+                        {entry.result.toLowerCase() === 'fail' && entry.failure_reasons && (
+                          <DetailSection>
+                            <DetailLabel>Failure Reasons:</DetailLabel>
+                            <ul>
+                              {Array.isArray(entry.failure_reasons) 
+                                ? entry.failure_reasons.map((reason, index) => (
+                                    <li key={index}>{reason}</li>
+                                  ))
+                                : <li>{entry.failure_reasons}</li>
+                              }
+                            </ul>
+                          </DetailSection>
+                        )}
+                        
+                        {entry.advisory_notes && (
+                          <DetailSection>
+                            <DetailLabel>Advisory Notes:</DetailLabel>
+                            <ul>
+                              {Array.isArray(entry.advisory_notes) 
+                                ? entry.advisory_notes.map((note, index) => (
+                                    <li key={index}>{note}</li>
+                                  ))
+                                : <li>{entry.advisory_notes}</li>
+                              }
+                            </ul>
+                          </DetailSection>
+                        )}
+                      </TimelineContent>
+                    </TimelineItem>
+                  ))}
+                </TimelineContainer>
+              ) : (
                 <p>No MOT history available for this vehicle.</p>
-              </EmptyState>
-            )}
-          </MOTHistoryCard>
-        </ResultsContainer>
-      ) : (
-        <EmptyState>
-          <h2>Enter a Registration Number</h2>
-          <p>Enter a UK vehicle registration number to view its details and MOT history.</p>
-        </EmptyState>
-      )}
+              )}
+            </MOTHistoryCard>
+          </ResultsContainer>
+        ) : (
+          <EmptyState>
+            <h2>Enter a Registration Number</h2>
+            <p>Enter a UK vehicle registration number to view its details and MOT history.</p>
+          </EmptyState>
+        )}
+      </PageContent>
     </PageContainer>
   );
 };

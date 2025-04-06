@@ -86,9 +86,9 @@ const Footer: React.FC = () => {
     <FooterContainer>
       <FooterContent>
         <FooterSection>
-          <FooterTitle>VehicleLookup</FooterTitle>
+          <FooterTitle>AutoBiography</FooterTitle>
           <FooterText>
-            Your one-stop resource for vehicle information, MOT history,
+            Your one-stop resource for car history and analytics, MOT history,
             and finding your next vehicle from listings across the UK.
           </FooterText>
         </FooterSection>
@@ -120,13 +120,13 @@ const Footer: React.FC = () => {
             Have questions or feedback? We'd love to hear from you.
           </FooterText>
           <FooterText>
-            Email: info@vehiclelookup.example.com
+            Email: info@autobiography.example.com
           </FooterText>
         </FooterSection>
       </FooterContent>
       
       <FooterCopyright>
-        © {currentYear} VehicleLookup. All rights reserved. Built at Bath Hackathon 2025.
+        © {currentYear} AutoBiography. All rights reserved. Built at Bath Hackathon 2025.
       </FooterCopyright>
     </FooterContainer>
   );

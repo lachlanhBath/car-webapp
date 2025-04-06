@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useApi } from '../services/ApiContext';
 import { colors, spacing, typography, mixins, shadows } from '../styles/styleGuide';
 import Input from '../components/UI/Input';
+import { motion } from 'motion/react';
 
 // Types
 interface Vehicle {
@@ -105,7 +106,7 @@ const ListingGrid = styled.div`
   }
 `;
 
-const Gallery = styled.div`
+const GalleryContainer = styled(motion.div)`
   position: relative;
   border-radius: 12px;
   overflow: hidden;
@@ -118,7 +119,13 @@ const Gallery = styled.div`
   }
 `;
 
-const ThumbnailsContainer = styled.div`
+const MainImage = styled(motion.img)`
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+`;
+
+const ThumbnailsContainer = styled(motion.div)`
   display: flex;
   gap: ${spacing[2]};
   margin-top: ${spacing[2]};
@@ -126,21 +133,27 @@ const ThumbnailsContainer = styled.div`
   padding-bottom: ${spacing[2]};
 `;
 
-const Thumbnail = styled.img<{ isActive: boolean }>`
+const Thumbnail = styled(motion.div)<{ isActive?: boolean }>`
   width: 80px;
   height: 60px;
-  object-fit: cover;
   border-radius: 8px;
   cursor: pointer;
   opacity: ${props => props.isActive ? 1 : 0.6};
   transition: opacity 0.2s ease;
+  overflow: hidden;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   
   &:hover {
     opacity: 1;
   }
 `;
 
-const DetailSection = styled.div`
+const DetailSection = styled(motion.section)`
   background-color: ${colors.dark.surface};
   border-radius: 12px;
   padding: ${spacing[6]};
@@ -320,7 +333,7 @@ const MOTTimeline = styled.div`
 const MOTTimelineItem = styled.div`
   position: relative;
   padding-left: 45px;
-  padding-bottom: ${spacing[6]};
+  padding-bottom: ${spacing[10]};
   
   &:last-child {
     padding-bottom: 0;
@@ -347,6 +360,7 @@ const MOTTimelineCard = styled.div`
   border: 1px solid ${colors.light.border};
   border-radius: 8px;
   padding: ${spacing[4]};
+  margin-bottom: ${spacing[4]};
 `;
 
 const MOTTimelineHeader = styled.div`
@@ -1035,7 +1049,7 @@ const TotalCost = styled.div`
     font-size: ${typography.fontSize.lg};
     color: ${colors.text.secondary};
     margin-top: ${spacing[2]};
-    font-weight: ${typography.fontWeight.medium};
+    font-weight: ${typography.fontWeight.regular};
   }
 `;
 
@@ -1232,7 +1246,12 @@ const ListingDetailPage = () => {
   // Move the forecastPeriod state hook inside the component
   const [forecastPeriod, setForecastPeriod] = useState(12);
 
-  // Update the monthly increase factors for different rates per category
+  // Add effect to scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Update the monthly increase factors to a flat 1.5% per month for all categories
   const MONTHLY_INCREASE = {
     fuel: Math.pow(1.03, 1/12), // 1% increase per month for fuel
     maintenance: Math.pow(1.05, 1/12), // 3% increase per month for maintenance
@@ -1906,28 +1925,44 @@ const ListingDetailPage = () => {
       
       <ListingGrid>
         <div>
-          <Gallery>
-            <img 
+          <GalleryContainer
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <MainImage 
               src={listing.image_urls[activeImageIndex]} 
               alt={listing.title} 
+              whileHover={{ scale: 1.03 }}
+              transition={{ duration: 0.3 }}
             />
-          </Gallery>
+            
+            {listing.image_urls.length > 1 && (
+              <ThumbnailsContainer
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                {listing.image_urls.map((url, index) => (
+                  <Thumbnail 
+                    key={index}
+                    onClick={() => setActiveImageIndex(index)}
+                    isActive={index === activeImageIndex}
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <img src={url} alt={`Thumbnail ${index + 1}`} />
+                  </Thumbnail>
+                ))}
+              </ThumbnailsContainer>
+            )}
+          </GalleryContainer>
           
-          {listing.image_urls.length > 1 && (
-            <ThumbnailsContainer>
-              {listing.image_urls.map((url, index) => (
-                <Thumbnail 
-                  key={index}
-                  src={url}
-                  alt={`Thumbnail ${index + 1}`}
-                  isActive={index === activeImageIndex}
-                  onClick={() => setActiveImageIndex(index)}
-                />
-              ))}
-            </ThumbnailsContainer>
-          )}
-          
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <SectionTitle>Description</SectionTitle>
             {listing.description ? (
               <Description>{listing.description}</Description>
@@ -1938,7 +1973,11 @@ const ListingDetailPage = () => {
         </div>
         
         <div>
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <ListingTitle>{listing.title}</ListingTitle>
             <Price>{formatPrice(listing.price)}</Price>
             
@@ -2042,7 +2081,11 @@ const ListingDetailPage = () => {
       {/* MOT Repair Estimate Section - At the top of additional sections */}
       {listing.vehicle.mot_repair_estimate && (
         <div style={{ marginTop: spacing[8] }}>
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <SectionTitle>MOT Repair Estimate</SectionTitle>
             <RepairEstimateContainer>
               <RepairEstimateTitle>
@@ -2063,7 +2106,11 @@ const ListingDetailPage = () => {
       {/* Expected Lifetime Section - After repair estimate */}
       {listing.vehicle.expected_lifetime && (
         <div style={{ marginTop: spacing[8] }}>
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <SectionTitle>Vehicle Lifetime Projection</SectionTitle>
             <AIPoweredContainer>
               <AIBadge>
@@ -2094,7 +2141,11 @@ const ListingDetailPage = () => {
       {/* Add AI Purchase Summary Section - After Expected Lifetime */}
       {listing.vehicle.purchase_summary ? (
         <AIPurchaseSummarySection>
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <SectionTitle>Purchase Analysis</SectionTitle>
             <AIPoweredContainer>
               <AIBadge>
@@ -2115,7 +2166,11 @@ const ListingDetailPage = () => {
       
       {!loading && !error && listing && (
         <CostCalculatorSection>
-          <DetailSection>
+          <DetailSection
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
             <SectionTitle>Monthly Cost Estimator</SectionTitle>
             <CostCalculator>
               <p>Estimate your monthly operating costs based on your driving habits.</p>
@@ -2234,7 +2289,7 @@ const ListingDetailPage = () => {
                           fontSize: typography.fontSize.lg, 
                           color: colors.text.secondary, 
                           marginTop: spacing[2],
-                          fontWeight: typography.fontWeight.normal 
+                          fontWeight: typography.fontWeight.regular 
                         }}>
                           Total over {forecastPeriod} months: £{Math.round(generateTimeSeriesData(costEstimate, forecastPeriod)[forecastPeriod-1].total)}
                         </div>
@@ -2394,26 +2449,16 @@ const ListingDetailPage = () => {
             
             <MOTTimelineContainer>
               <MOTTimeline>
-                {motHistory.map((test) => {
-                  const isPassed = test.result.toLowerCase() === 'pass';
-                  const isExpanded = expandedItems[test.id] || false;
-                  const hasAdvisories = test.advisory_notes && (
-                    Array.isArray(test.advisory_notes) 
-                      ? test.advisory_notes.length > 0 
-                      : typeof test.advisory_notes === 'string' && test.advisory_notes.trim() !== ''
-                  );
-                  
-                  // Fix the failure_reasons check
-                  const hasFailures = test.failure_reasons && (
-                    Array.isArray(test.failure_reasons) 
-                      ? test.failure_reasons.length > 0 
-                      : typeof test.failure_reasons === 'string' && String(test.failure_reasons).trim() !== ''
-                  );
-                  
-                  return (
-                    <MOTTimelineItem key={test.id}>
-                      <StatusIndicator passed={isPassed}>
-                        {isPassed ? (
+                {motHistory.map((test, index) => (
+                  <motion.div 
+                    key={test.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 * index }}
+                  >
+                    <MOTTimelineItem>
+                      <StatusIndicator passed={test.result.toLowerCase() === 'pass'}>
+                        {test.result.toLowerCase() === 'pass' ? (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
@@ -2426,8 +2471,8 @@ const ListingDetailPage = () => {
                       
                       <MOTTimelineCard>
                         <MOTTimelineHeader>
-                          <MOTTimelineDate passed={isPassed}>
-                            {isPassed ? 'Passed' : 'Failed'} - {formatDate(test.test_date)}
+                          <MOTTimelineDate passed={test.result.toLowerCase() === 'pass'}>
+                            {test.result.toLowerCase() === 'pass' ? 'Passed' : 'Failed'} - {formatDate(test.test_date)}
                           </MOTTimelineDate>
                           <MOTTimelineLocation>
                             MOT Test at Unknown
@@ -2448,7 +2493,7 @@ const ListingDetailPage = () => {
                           )}
                         </MOTTimelineDetails>
                         
-                        {hasAdvisories && !isExpanded && (
+                        {test.advisory_notes && (
                           <AdvisoryBadge>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M12 9V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -2457,7 +2502,7 @@ const ListingDetailPage = () => {
                           </AdvisoryBadge>
                         )}
                         
-                        {(hasAdvisories || hasFailures) && (
+                        {test.failure_reasons && (
                           <DetailsToggle onClick={() => toggleDetails(test.id)}>
                             <svg 
                               width="16" 
@@ -2465,32 +2510,30 @@ const ListingDetailPage = () => {
                               viewBox="0 0 24 24" 
                               fill="none" 
                               xmlns="http://www.w3.org/2000/svg"
-                              style={{ transform: isExpanded ? 'rotate(90deg)' : 'none' }}
+                              style={{ transform: expandedItems[test.id] ? 'rotate(90deg)' : 'none' }}
                             >
                               <path d="M9 6L15 12L9 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                            {isExpanded ? 'Hide details' : 'Show details'}
+                            {expandedItems[test.id] ? 'Hide details' : 'Show details'}
                           </DetailsToggle>
                         )}
                         
-                        {isExpanded && (
+                        {expandedItems[test.id] && (
                           <ExpandedDetails>
-                            {hasFailures && (
+                            {Array.isArray(test.failure_reasons) ? (
                               <div style={{ marginBottom: spacing[4] }}>
                                 <MOTAdvisoriesTitle>Failure Reasons</MOTAdvisoriesTitle>
                                 <MOTAdvisoriesList>
-                                  {Array.isArray(test.failure_reasons) ? (
-                                    test.failure_reasons.map((reason, idx) => (
-                                      <MOTFailureItem key={idx}>{reason}</MOTFailureItem>
-                                    ))
-                                  ) : (
-                                    <MOTFailureItem>{test.failure_reasons}</MOTFailureItem>
-                                  )}
+                                  {test.failure_reasons.map((reason, idx) => (
+                                    <MOTFailureItem key={idx}>{reason}</MOTFailureItem>
+                                  ))}
                                 </MOTAdvisoriesList>
                               </div>
+                            ) : (
+                              <MOTFailureItem>{test.failure_reasons}</MOTFailureItem>
                             )}
                             
-                            {hasAdvisories && (
+                            {test.advisory_notes && (
                               <div>
                                 <MOTAdvisoriesTitle>Advisory Notices</MOTAdvisoriesTitle>
                                 <MOTAdvisoriesList>
@@ -2508,8 +2551,8 @@ const ListingDetailPage = () => {
                         )}
                       </MOTTimelineCard>
                     </MOTTimelineItem>
-                  );
-                })}
+                  </motion.div>
+                ))}
               </MOTTimeline>
             </MOTTimelineContainer>
           </DetailSection>
