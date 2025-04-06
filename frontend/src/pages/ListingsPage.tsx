@@ -398,7 +398,7 @@ const ListingTitle = styled.h3`
     transition: color 0.2s ease;
     
     &:hover {
-      color: ${colors.primary.main};
+      color: ${colors.text.primary};
     }
   }
 `;
