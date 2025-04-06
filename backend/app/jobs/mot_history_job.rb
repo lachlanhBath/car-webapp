@@ -58,6 +58,7 @@ class MotHistoryJob < ApplicationJob
       Rails.logger.error e.backtrace.join("\n")
     end
 
+    sleep(1) # wait for database to update
     PurchaseSummaryJob.perform_later(vehicle_id)
   end
 

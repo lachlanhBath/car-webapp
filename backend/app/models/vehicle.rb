@@ -9,9 +9,6 @@ class Vehicle < ApplicationRecord
   scope :by_model, ->(model) { where("model ILIKE ?", model) if model.present? }
   scope :year_range, ->(min, max) { where(year: min..max) if min.present? && max.present? }
 
-  after_create :enqueue_dvla_enquiry
-  after_create :generate_purchase_summary
-
   # Methods
   def full_name
     [year, make, model].compact.join(" ")
@@ -20,7 +17,7 @@ class Vehicle < ApplicationRecord
   def enqueue_dvla_enquiry
     DvlaVehicleEnquiryJob.perform_later(id)
   end
-  
+
   def generate_purchase_summary
     PurchaseSummaryJob.perform_later(id)
   end

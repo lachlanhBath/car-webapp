@@ -57,11 +57,12 @@ class ProcessListingImagesJob < ApplicationJob
           end
         end
 
+        sleep(1) # wait for database to update
         # Enqueue the vehicle enrichment jobs to get the rest of the data
         DvlaVehicleEnquiryJob.perform_later(vehicle.id)
-        MotHistoryJob.perform_later(vehicle.id)
       else
         Rails.logger.info "No license plate detected for listing ##{listing.id} - no vehicle will be created"
+        listing.destroy
       end
     rescue => e
       Rails.logger.error "Error in ProcessListingImagesJob for listing ##{listing_id}: #{e.message}"

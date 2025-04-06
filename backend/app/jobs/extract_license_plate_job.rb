@@ -52,6 +52,7 @@ class ExtractLicensePlateJob < ApplicationJob
 
           Rails.logger.info "Updated vehicle ##{vehicle.id} with ONLY registration: #{result[:registration]}"
 
+          sleep(1) # wait for database to update
           # Enqueue the next job in the pipeline to populate vehicle details
           DvlaVehicleEnquiryJob.perform_later(vehicle_id)
         else

@@ -50,16 +50,18 @@ class DvlaVehicleEnquiryJob < ApplicationJob
         Rails.logger.info "Updated vehicle ##{vehicle.id} with complete DVLA data"
       else
         Rails.logger.info "No DVLA data found for vehicle ##{vehicle.id} with registration #{vehicle.registration}"
+        # destroy the vehicle, no point in keeping it
+        vehicle.destroy
       end
 
+      sleep(1) # wait for database to update
       # Continue to the next job in the pipeline regardless of the result
       MotHistoryJob.perform_later(vehicle_id)
     rescue => e
       Rails.logger.error "Error in DvlaVehicleEnquiryJob for vehicle ##{vehicle_id}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-
-      # Still try to get MOT history even if DVLA fails
-      MotHistoryJob.perform_later(vehicle_id)
+      # destroy the vehicle, no point in keeping it
+      vehicle.destroy
     end
   end
 end
