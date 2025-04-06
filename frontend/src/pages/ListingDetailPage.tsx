@@ -30,6 +30,7 @@ interface Vehicle {
   purchase_summary?: string;
   mot_repair_estimate?: string;
   expected_lifetime?: string;
+  original_purchase_price?: number;
 }
 
 interface MOTHistoryEntry {
@@ -1139,6 +1140,7 @@ const ToggleButton = styled.button<{ active: boolean }>`
   font-size: ${typography.fontSize.sm};
   cursor: pointer;
   transition: all 0.2s ease;
+  margin: 0 ${spacing[1]}; /* Add margin to create a gap between buttons */
   
   &:first-child {
     border-top-left-radius: 4px;
@@ -2141,19 +2143,89 @@ const ListingDetailPage = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <SectionTitle>Purchase Analysis</SectionTitle>
-            <AIPoweredContainer>
-              <AIBadge>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-                  <path d="M2 17L12 22L22 17" fill="currentColor"/>
-                  <path d="M2 12L12 17L22 12" fill="currentColor"/>
-                </svg>
-                AI-Generated Analysis
-              </AIBadge>
-              <PurchaseSummary>
-                {listing.vehicle.purchase_summary}
-              </PurchaseSummary>
-            </AIPoweredContainer>
+            <div style={{ display: 'flex', gap: spacing[4], flexDirection: 'row', alignItems: 'stretch', height: '100%' }}>
+              {/* Main AI Analysis Card */}
+              <AIPoweredContainer style={{ flex: '1 1 60%', minWidth: '300px' }}>
+                <AIBadge>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                    <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                    <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                  </svg>
+                  AI-Generated Analysis
+                </AIBadge>
+                
+                <PurchaseSummary>
+                  {listing.vehicle.purchase_summary}
+                </PurchaseSummary>
+              </AIPoweredContainer>
+              
+              {/* Original Purchase Price Card */}
+              {listing.vehicle.original_purchase_price && (
+                <AIPoweredContainer style={{ 
+                  flex: '0 0 340px',
+                  padding: spacing[6],
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    {/* AI Badge */}
+                    <div style={{
+                      display: 'inline-block',
+                      marginBottom: spacing[5],
+                      alignSelf: 'flex-start'
+                    }}>
+                      <AIBadge style={{ 
+                        background: 'linear-gradient(90deg, #1F8254, #2CC966)',
+                        padding: '6px 12px'
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
+                          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                          <path d="M2 17L12 22L22 17" fill="currentColor"/>
+                          <path d="M2 12L12 17L22 12" fill="currentColor"/>
+                        </svg>
+                        AI-Generated Data
+                      </AIBadge>
+                    </div>
+                    
+                    {/* Original MSRP Label */}
+                    <div style={{ 
+                      fontSize: typography.fontSize.lg, 
+                      color: colors.text.primary, 
+                      marginBottom: spacing[4],
+                      fontWeight: typography.fontWeight.medium
+                    }}>
+                      Original MSRP
+                    </div>
+                    
+                    {/* Price */}
+                    <div style={{ 
+                      color: '#2CC966',
+                      fontSize: '2.25rem', 
+                      fontWeight: typography.fontWeight.bold,
+                      marginBottom: spacing[4],
+                      lineHeight: 1
+                    }}>
+                      £{listing.vehicle.original_purchase_price.toLocaleString()}
+                    </div>
+                    
+                    {/* Description */}
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      fontSize: typography.fontSize.base, 
+                      color: colors.text.secondary
+                    }}>
+                      New car price when first sold
+                    </div>
+                  </div>
+                </AIPoweredContainer>
+              )}
+            </div>
           </DetailSection>
         </AIPurchaseSummarySection>
       ) : null}

@@ -126,7 +126,8 @@ module Api
             mot_status: listing.vehicle.mot_status,
             mot_expiry_date: listing.vehicle.mot_expiry_date,
             mot_repair_estimate: listing.vehicle.mot_repair_estimate,
-            expected_lifetime: listing.vehicle.expected_lifetime
+            expected_lifetime: listing.vehicle.expected_lifetime,
+            original_purchase_price: listing.vehicle.original_purchase_price
           }
         end
         

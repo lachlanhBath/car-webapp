@@ -83,6 +83,7 @@ module Api
           mileage: vehicle.mileage,
           purchase_summary: vehicle.purchase_summary,
           mot_repair_estimate: vehicle.mot_repair_estimate,
+          original_purchase_price: vehicle.original_purchase_price,
           listing: vehicle.listing ? {
             id: vehicle.listing.id,
             title: vehicle.listing.title,
