@@ -50,11 +50,11 @@ class PurchaseSummaryJob < ApplicationJob
 
     # Calculate current age
     current_age = Time.current.year - year.to_i if year
-    
+
     # Get failure rate from MOT history
     failures = mot_history.select { |mot| mot.result.to_s.upcase == "FAIL" }
     failure_rate = mot_history.present? ? (failures.count.to_f / mot_history.count) : nil
-    
+
     # Call OpenAI to get the expected lifetime
     prompt = build_lifetime_prompt(
       make: make,
@@ -65,37 +65,37 @@ class PurchaseSummaryJob < ApplicationJob
       fuel_type: fuel_type,
       failure_rate: failure_rate
     )
-    
+
     # Call OpenAI API
     service = Enrichment::OpenAiService.new
-    response = service.generate_text(prompt, 'gpt-4o-mini', 100)
-    
+    response = service.generate_text(prompt, "gpt-4o-mini", 100)
+
     # Return the generated lifetime estimate
     response || default_lifetime(vehicle)
   end
 
   def build_lifetime_prompt(make:, model:, year:, mileage:, current_age:, fuel_type:, failure_rate:)
-    prompt = "You are an automotive expert estimating the expected lifetime of a #{year} #{make} #{model} (#{fuel_type}) with current mileage of #{mileage || 'unknown'} miles and age of #{current_age || 'unknown'} years.\n\n"
-    
+    prompt = "You are an automotive expert estimating the expected lifetime of a #{year} #{make} #{model} (#{fuel_type}) with current mileage of #{mileage || "unknown"} miles and age of #{current_age || "unknown"} years.\n\n"
+
     prompt += "Consider:\n"
     prompt += "1. The typical reliability and longevity of this make, model, and engine type\n"
     prompt += "2. Current age and mileage compared to typical lifespan\n"
     prompt += "3. Common major failures that end a vehicle's useful life\n"
-    
+
     if failure_rate
       prompt += "4. This specific vehicle has a MOT test failure rate of #{(failure_rate * 100).round}%\n"
     end
-    
+
     prompt += "\nProvide ONLY a concise estimate of the expected remaining life in both years and miles.\n"
-    
+
     prompt += "\nKeep your response to a single short sentence focusing ONLY on the expected remaining life."
-    
+
     prompt
   end
 
   def default_lifetime(vehicle)
     age = vehicle&.year ? (Time.current.year - vehicle.year) : nil
-    
+
     if age && age > 15
       "1-3 more years or 10,000-30,000 additional miles with careful maintenance"
     elsif age && age > 10
@@ -124,7 +124,7 @@ class PurchaseSummaryJob < ApplicationJob
     make = vehicle.make
     model = vehicle.model
     year = vehicle.year
-    
+
     # Call OpenAI to get the repair estimate
     prompt = build_repair_estimate_prompt(
       make: make,
@@ -132,28 +132,28 @@ class PurchaseSummaryJob < ApplicationJob
       year: year,
       failure_reasons: failure_reasons
     )
-    
+
     # Call OpenAI API
     service = Enrichment::OpenAiService.new
-    response = service.generate_text(prompt, 'gpt-4o-mini')
-    
+    response = service.generate_text(prompt, "gpt-4o-mini")
+
     # Return the generated estimate
     response || default_repair_estimate(vehicle, failure_reasons)
   end
 
   def build_repair_estimate_prompt(make:, model:, year:, failure_reasons:)
     prompt = "You are a vehicle mechanic estimating MOT repair costs. Based on the following MOT failure reasons for a #{year} #{make} #{model}, provide a BRIEF repair cost estimate with a range (e.g., £200-£300), and a short explanation of what repairs would be needed:\n\n"
-    
+
     prompt += "MOT Failure Reasons:\n"
     failure_reasons.each { |r| prompt += "- #{r}\n" }
-    
+
     prompt += "\nConsider current UK parts and labor costs, as well as common problems for this make/model."
     prompt += "\nProvide a SHORT response including: estimated cost range, 1-2 sentence explanation of what repairs are needed, and very brief recommendation if the repair is worth doing based on typical vehicle value."
     prompt += "\nFormat your response as follows:"
     prompt += "\nCost: [estimated range in GBP]"
     prompt += "\nNeeded Repairs: [concise explanation]"
     prompt += "\nRecommendation: [brief advice]"
-    
+
     prompt
   end
 
@@ -202,7 +202,7 @@ class PurchaseSummaryJob < ApplicationJob
 
     # Call to OpenAI API using the service
     service = Enrichment::OpenAiService.new
-    openai_response = service.generate_text(prompt, 'gpt-4o-mini')
+    openai_response = service.generate_text(prompt, "gpt-4o-mini")
 
     # Return the generated summary
     openai_response || default_summary(vehicle)

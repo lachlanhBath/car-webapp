@@ -365,6 +365,69 @@ module Scrapers
 
       location = location_element ? location_element.text.strip : nil
       puts "Found location: #{location}"
+      
+      # Extract transmission from Gearbox field
+      transmission = nil
+      
+      # First try using the exact structure provided
+      # Look for div containing a span with text "Gearbox" and another span with data-testid="details"
+      doc.css('div').each do |div|
+        term_span = div.at_css('span.term_details, span:contains("Gearbox")')
+        if term_span && term_span.text.strip == 'Gearbox'
+          value_span = div.at_css('span[data-testid="details"], span.value_details')
+          if value_span
+            transmission = value_span.text.strip
+            puts "Found transmission using exact structure: #{transmission}"
+            break
+          end
+        end
+      end
+      
+      # If not found, try more general selectors
+      if transmission.nil?
+        # Look for any div with Gearbox text and a value nearby
+        doc.css('div, span, p').each do |element|
+          if element.text.include?('Gearbox')
+            # Look for the next element or child element with value
+            value_element = element.next_element || element.at_css('span')
+            if value_element && ['Manual', 'Automatic', 'Semi-Auto', 'CVT', 'DSG'].any? { |t| value_element.text.include?(t) }
+              transmission = value_element.text.strip
+              puts "Found transmission from general selector: #{transmission}"
+              break
+            end
+          end
+        end
+      end
+      
+      # If still not found, try looking for key-value pairs in specs/details
+      if transmission.nil?
+        details_selectors = [
+          'ul.key-specifications li',
+          'ul.vehicle-specs li',
+          'div.specs-list div',
+          'div[class*="key-specifications"] li',
+          'div[class*="specs"] li',
+          'div[class*="details"] li'
+        ]
+        
+        details_selectors.each do |selector|
+          doc.css(selector).each do |item|
+            if item.text.include?('Gearbox') || item.text.include?('Transmission')
+              item.css('span').each do |span|
+                if ['Manual', 'Automatic', 'Semi-Auto', 'CVT', 'DSG'].any? { |t| span.text.include?(t) }
+                  transmission = span.text.strip
+                  puts "Found transmission from specs list: #{transmission}"
+                  break
+                end
+              end
+              break if transmission
+            end
+          end
+          break if transmission
+        end
+      end
+      
+      puts "Final transmission value: #{transmission || 'Not found'}"
 
       # Description using specific selector
       description_title = doc.at_css('[data-gui="advert-description-title"]')
@@ -447,7 +510,8 @@ module Scrapers
         post_date: post_date,
         source_id: source_id,
         status: "active",
-        specs: specs
+        specs: specs,
+        transmission: transmission
       }
 
       create_or_update_listing(listing_data)
@@ -461,6 +525,54 @@ module Scrapers
         return element if element
       end
       nil
+    end
+
+    def create_or_update_listing(listing_data)
+      return if listing_data[:source_id].blank?
+      
+      # Find existing listing or create new one
+      listing = Listing.find_or_initialize_by(source_id: listing_data[:source_id])
+      
+      # Update attributes
+      listing.assign_attributes(
+        source_url: listing_data[:source_url],
+        title: listing_data[:title],
+        price: listing_data[:price],
+        description: listing_data[:description],
+        location: listing_data[:location],
+        image_urls: listing_data[:image_urls],
+        post_date: listing_data[:post_date],
+        status: listing_data[:status]
+      )
+      
+      # Add any tags/categories
+      if listing_data[:specs].present?
+        listing.specs = listing_data[:specs]
+      end
+      
+      # Save the listing
+      if listing.save
+        puts "Saved listing: #{listing.title}"
+        
+        # Handle vehicle creation or update
+        vehicle = listing.vehicle || listing.build_vehicle
+        
+        # Extract or use provided transmission
+        if listing_data[:transmission].present?
+          vehicle.transmission = listing_data[:transmission]
+          puts "Setting transmission directly: #{listing_data[:transmission]}"
+        end
+        
+        # The listing after_commit callback will handle rest of vehicle creation and registration extraction
+        if vehicle.changed?
+          vehicle.save
+          puts "Updated vehicle with transmission: #{vehicle.transmission}"
+        end
+      else
+        puts "Error saving listing: #{listing.errors.full_messages.join(', ')}"
+      end
+      
+      listing
     end
   end
 end
