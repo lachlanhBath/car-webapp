@@ -414,7 +414,17 @@ export const mixins = {
 
 // Default theme
 export const defaultTheme = {
-  colors: colors.light,
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  transitions,
+  zIndex,
+  breakpoints,
+  layout,
+  components,
+  // Adding these for backward compatibility
   textColors: colors.text,
   primaryColor: colors.primary,
   secondaryColor: colors.secondary,

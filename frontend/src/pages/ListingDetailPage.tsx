@@ -1916,6 +1916,28 @@ const ListingDetailPage = () => {
     }).format(numericPrice);
   };
 
+  // MOT Status Badge component
+  const MOTStatusBadge = styled.span<{ status: string }>`
+    display: inline-flex;
+    align-items: center;
+    background-color: ${({ status }) => 
+      status?.toLowerCase() === 'valid' 
+        ? colors.state.success + '30' 
+        : status?.toLowerCase() === 'expired'
+          ? colors.state.error + '30'
+          : colors.state.warning + '30'};
+    color: ${({ status }) => 
+      status?.toLowerCase() === 'valid' 
+        ? colors.state.success 
+        : status?.toLowerCase() === 'expired'
+          ? colors.state.error
+          : colors.state.warning};
+    font-size: ${typography.fontSize.xs};
+    font-weight: ${typography.fontWeight.semibold};
+    padding: ${spacing[1]} ${spacing[2]};
+    border-radius: 4px;
+  `;
+
   return (
     <Container>
       <BackLink to="/listings">
@@ -2002,6 +2024,23 @@ const ListingDetailPage = () => {
             
             <SectionTitle>Vehicle Specifications</SectionTitle>
             <SpecsGrid>
+              {listing.vehicle.mot_status && (
+                <SpecItem>
+                  <SpecLabel>MOT Status</SpecLabel>
+                  <SpecValue>
+                    <MOTStatusBadge status={listing.vehicle.mot_status}>
+                      {listing.vehicle.mot_status}
+                      {listing.vehicle.mot_expiry_date && listing.vehicle.mot_status.toLowerCase() === 'valid' && 
+                        ` - Exp. ${new Date(listing.vehicle.mot_expiry_date).toLocaleDateString('en-GB', { 
+                          day: 'numeric',
+                          month: 'short',
+                          year: '2-digit'
+                        })}`
+                      }
+                    </MOTStatusBadge>
+                  </SpecValue>
+                </SpecItem>
+              )}
               <SpecItem>
                 <SpecLabel>Make</SpecLabel>
                 <SpecValue>{listing.vehicle.make || 'N/A'}</SpecValue>

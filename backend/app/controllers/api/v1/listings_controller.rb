@@ -89,6 +89,182 @@ module Api
         render json: listing_json(@listing, detailed: true)
       end
       
+      def process_url
+        # Validate URL is present and is an Autotrader URL
+        unless params[:url].present?
+          render json: { error: "URL is required" }, status: :bad_request
+          return
+        end
+        
+        url = params[:url].to_s.strip
+        
+        # Check if it's a valid Autotrader URL
+        unless url.match?(/https?:\/\/(?:www\.)?autotrader\.co\.uk\/car-details\//)
+          render json: { error: "Invalid Autotrader URL" }, status: :bad_request
+          return
+        end
+        
+        # Extract the listing ID from the URL
+        source_id = url.match(/\/car-details\/(\d+)/)[1] rescue nil
+        
+        # Check if we already have this listing
+        if source_id.present?
+          existing_listing = Listing.find_by(source_id: source_id)
+          if existing_listing
+            # If the listing already exists, return it
+            render json: { 
+              success: true, 
+              listing_id: existing_listing.id,
+              message: "Listing already exists in database",
+              processing: true
+            }
+            return
+          end
+        else
+          render json: { error: "Invalid Autotrader URL format" }, status: :bad_request
+          return
+        end
+        
+        begin
+          # Initialize the headless scraper
+          scraper = Scrapers::AutotraderHeadlessScraper.new(debug: Rails.env.development?)
+          
+          # Scrape the URL
+          result = scraper.scrape_autotrader_url(url)
+          
+          if result[:success]
+            render json: { 
+              success: true, 
+              listing_id: result[:listing_id],
+              message: result[:message],
+              processing: true
+            }
+          else
+            # If scraping failed but we have a valid source_id, try to create a minimal listing
+            if source_id.present?
+              # Create a basic listing with just the source ID and URL
+              listing = Listing.create(
+                source_id: source_id,
+                source_url: url,
+                title: "Autotrader Listing #{source_id}",
+                status: "active",
+                post_date: Date.current
+              )
+              
+              if listing.persisted?
+                # Start the processing pipeline
+                ProcessListingImagesJob.perform_later(listing.id)
+                
+                render json: { 
+                  success: true, 
+                  listing_id: listing.id,
+                  message: "Created basic listing from URL. Processing started.",
+                  processing: true
+                }
+              else
+                render json: { 
+                  success: false, 
+                  error: "Failed to create listing: #{listing.errors.full_messages.join(', ')}" 
+                }, status: :unprocessable_entity
+              end
+            else
+              render json: { 
+                success: false, 
+                error: result[:message] 
+              }, status: :unprocessable_entity
+            end
+          end
+        rescue => e
+          # Last chance fallback - if there was an exception but we have a source_id
+          if source_id.present?
+            # Check if the listing was created despite the error
+            listing = Listing.find_by(source_id: source_id)
+            
+            if listing
+              # Start the processing pipeline
+              ProcessListingImagesJob.perform_later(listing.id)
+              
+              render json: { 
+                success: true, 
+                listing_id: listing.id,
+                message: "Listing found despite errors. Processing started.",
+                processing: true
+              }
+              return
+            end
+            
+            # Try to create a minimal listing
+            begin
+              listing = Listing.create(
+                source_id: source_id,
+                source_url: url,
+                title: "Autotrader Listing #{source_id}",
+                status: "active",
+                post_date: Date.current
+              )
+              
+              if listing.persisted?
+                # Start the processing pipeline
+                ProcessListingImagesJob.perform_later(listing.id)
+                
+                render json: { 
+                  success: true, 
+                  listing_id: listing.id,
+                  message: "Created fallback listing after error. Processing started.",
+                  processing: true
+                }
+                return
+              end
+            rescue => create_error
+              Rails.logger.error("Failed to create fallback listing: #{create_error.message}")
+            end
+          end
+          
+          # If all else fails, return the error
+          Rails.logger.error("Error processing URL: #{e.message}")
+          Rails.logger.error(e.backtrace.join("\n"))
+          
+          render json: { 
+            success: false, 
+            error: "Error processing URL: #{e.message}" 
+          }, status: :unprocessable_entity
+        end
+      end
+      
+      def check_processing_status
+        # This endpoint is used by the frontend to check if a vehicle is fully processed
+        listing = Listing.includes(:vehicle).find(params[:id])
+        
+        unless listing
+          render json: { error: "Listing not found" }, status: :not_found
+          return
+        end
+        
+        if listing.vehicle.nil?
+          render json: { 
+            processing: true,
+            status: "Processing - waiting for vehicle data" 
+          }
+          return
+        end
+        
+        # Check if the vehicle has been fully processed
+        # A fully processed vehicle will have purchase_summary present
+        if listing.vehicle.purchase_summary.present?
+          render json: { 
+            processing: false,
+            status: "Complete",
+            vehicle_id: listing.vehicle.id,
+            listing_id: listing.id
+          }
+        else
+          render json: { 
+            processing: true,
+            status: "Processing - enriching vehicle data" 
+          }
+        end
+      end
+      
       private
       
       def vehicle_filters_present?

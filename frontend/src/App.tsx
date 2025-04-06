@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import GlobalStyles from './styles/GlobalStyles';
 import { defaultTheme } from './styles/styleGuide';
 import Layout from './components/Layout/Layout';
+import ScrollToTop from './components/UI/ScrollToTop';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -17,6 +18,7 @@ function App() {
     <ThemeProvider theme={defaultTheme}>
       <GlobalStyles />
       <Layout>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/listings" element={<ListingsPage />} />

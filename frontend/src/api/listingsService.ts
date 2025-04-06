@@ -23,5 +23,21 @@ export const listingsService = {
   
   getListingById: async (id: string) => {
     return apiClient.get(`/listings/${id}`);
+  },
+  
+  processAutotraderUrl: async (url: string) => {
+    console.log('Sending request to process URL:', url);
+    try {
+      const response = await apiClient.post('/listings/process_url', { url });
+      console.log('Raw API response:', response);
+      return response;
+    } catch (error) {
+      console.error('API error in processAutotraderUrl:', error);
+      throw error;
+    }
+  },
+  
+  checkProcessingStatus: async (listingId: string) => {
+    return apiClient.get(`/listings/${listingId}/check_processing_status`);
   }
 }; 
