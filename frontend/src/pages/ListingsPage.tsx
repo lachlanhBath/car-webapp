@@ -254,7 +254,7 @@ const QuickFilterChip = styled(motion.button)<{ $active?: boolean }>`
 const FilterSection = styled.div`
   background-color: ${colors.dark.surface};
   border-radius: 12px;
-  padding: ${spacing[6]};
+  padding: ${spacing[4]};
   margin-bottom: ${spacing[8]};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid ${colors.dark.border};
@@ -265,7 +265,7 @@ const FilterSectionHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  padding-bottom: ${spacing[4]};
+  min-height: 40px;
 `;
 
 const FilterArrow = styled.div<{ $expanded: boolean }>`
@@ -302,6 +302,8 @@ const FilterSectionTitle = styled.h3`
   display: flex;
   align-items: center;
   margin: 0;
+  height: 40px;
+  line-height: 1;
   
   svg {
     margin-right: ${spacing[2]};
@@ -313,6 +315,7 @@ const FilterGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: ${spacing[5]};
+  margin-top: ${spacing[4]};
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr 1fr;
@@ -1085,7 +1088,7 @@ const ListingsPage: React.FC = () => {
           
           <FilterSection>
             <FilterSectionHeader onClick={toggleFilters}>
-              <h2>Advanced Filters</h2>
+              <FilterSectionTitle>Advanced Filters</FilterSectionTitle>
               <FilterArrow $expanded={filtersExpanded}>
                 <svg
                   width="24"
