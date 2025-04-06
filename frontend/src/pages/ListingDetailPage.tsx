@@ -1252,12 +1252,14 @@ const ListingDetailPage = () => {
 
   // Update the monthly increase factors to a flat 1.5% per month for all categories
   const MONTHLY_INCREASE = {
-    fuel: 1.015, // 1.5% increase per month for fuel
-    maintenance: 1.015, // 1.5% increase per month for maintenance
-    tax: 1.015, // 1.5% increase per month for tax
-    insurance: 1.015 // 1.5% increase per month for insurance
+    fuel: Math.pow(1.03, 1/12), // 1% increase per month for fuel
+    maintenance: Math.pow(1.05, 1/12), // 3% increase per month for maintenance
+    tax: 1, // No change for tax (constant)
+    insurance: Math.pow(0.95, 1/12) // 1% decrease per month for insurance
   };
-
+  const sigmoid_cost = (x: number, a: number ,b: number) => {
+    return a / (b + Math.exp(-0.1*x));
+  }
   // Update the generateTimeSeriesData function to accept a custom period
   const generateTimeSeriesData = (costEstimate: CostEstimateResponse, months: number = 12) => {
     const timeSeriesData = [];
@@ -1284,7 +1286,7 @@ const ListingDetailPage = () => {
       if (month > 0) {
         // Apply monthly increases with compounding effect
         currentCosts = {
-          fuel: currentCosts.fuel * MONTHLY_INCREASE.fuel,
+          fuel: currentCosts.fuel + sigmoid_cost(month - 1, 0.2, 10),
           maintenance: currentCosts.maintenance * MONTHLY_INCREASE.maintenance,
           tax: currentCosts.tax * MONTHLY_INCREASE.tax,
           insurance: currentCosts.insurance * MONTHLY_INCREASE.insurance
@@ -1532,7 +1534,7 @@ const ListingDetailPage = () => {
         ))}
         <g transform={`translate(0, ${categories.length * 20 + 20})`}>
           <line x1="0" x2="15" y1="7" y2="7" stroke="#FF5252" strokeWidth="2" strokeDasharray="3,3" />
-          <text x="20" y="12" fontSize="12" fill="#FF5252">Monthly Cost Trend</text>
+          <text x="20" y="12" fontSize="12" fill="#FF5252">Monthly Trend (Fuel +1%, Maintenance +3%, Insurance -1%)</text>
         </g>
       </g>
     );
@@ -2370,7 +2372,7 @@ const ListingDetailPage = () => {
                     ) : (
                       <CostAreaChart>
                         <h4 style={{ marginBottom: spacing[3], textAlign: 'center' }}>
-                          Cumulative Cost Over {forecastPeriod} Months (with 1.5% Monthly Increase)
+                          Cumulative Cost Over {forecastPeriod} Months (with Variable Monthly Changes)
                         </h4>
                         
                         <SliderContainer>
