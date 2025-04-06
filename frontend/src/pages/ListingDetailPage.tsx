@@ -333,7 +333,7 @@ const MOTTimeline = styled.div`
 const MOTTimelineItem = styled.div`
   position: relative;
   padding-left: 45px;
-  padding-bottom: ${spacing[6]};
+  padding-bottom: ${spacing[10]};
   
   &:last-child {
     padding-bottom: 0;
@@ -360,6 +360,7 @@ const MOTTimelineCard = styled.div`
   border: 1px solid ${colors.light.border};
   border-radius: 8px;
   padding: ${spacing[4]};
+  margin-bottom: ${spacing[4]};
 `;
 
 const MOTTimelineHeader = styled.div`
