@@ -18,6 +18,9 @@ class PurchaseSummaryJob < ApplicationJob
       # Generate expected lifetime estimate
       lifetime = generate_expected_lifetime(vehicle)
 
+      # Generate original purchase price estimate
+      original_price = generate_original_purchase_price(vehicle)
+
       # Check if vehicle has failed MOT and generate repair estimate if needed
       repair_estimate = generate_mot_repair_estimate(vehicle) if needs_mot_repair_estimate?(vehicle)
 
@@ -26,12 +29,14 @@ class PurchaseSummaryJob < ApplicationJob
         purchase_summary: summary,
         mot_repair_estimate: repair_estimate,
         expected_lifetime: lifetime,
+        original_purchase_price: original_price,
         transmission: vehicle.listing.transmission
       )
 
       Rails.logger.info "Updated vehicle ##{vehicle.id} with AI purchase summary"
       Rails.logger.info "Generated MOT repair estimate for vehicle ##{vehicle.id}" if repair_estimate.present?
       Rails.logger.info "Generated expected lifetime for vehicle ##{vehicle.id}" if lifetime.present?
+      Rails.logger.info "Generated original purchase price for vehicle ##{vehicle.id}" if original_price.present?
     rescue => e
       Rails.logger.error "Error in PurchaseSummaryJob for vehicle ##{vehicle_id}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
@@ -165,6 +170,79 @@ class PurchaseSummaryJob < ApplicationJob
     else
       "Cost: £300-£800+\nNeeded Repairs: Multiple MOT failures that will require significant parts and labor.\nRecommendation: Get a detailed inspection before committing to repairs."
     end
+  end
+
+  def generate_original_purchase_price(vehicle)
+    # Collect relevant vehicle data
+    make = vehicle.make
+    model = vehicle.model
+    year = vehicle.year
+    fuel_type = vehicle.fuel_type
+    transmission = vehicle.transmission
+    engine_size = vehicle.engine_size
+
+    # Call OpenAI to get the original purchase price
+    prompt = build_original_price_prompt(
+      make: make,
+      model: model,
+      year: year,
+      fuel_type: fuel_type,
+      transmission: transmission,
+      engine_size: engine_size
+    )
+
+    # Call OpenAI API
+    service = Enrichment::OpenAiService.new
+    response = service.generate_text(prompt, "gpt-4o-mini", 50)
+
+    # Parse the response to extract the price as a number
+    extracted_price = extract_price_from_response(response)
+    extracted_price || default_original_price(vehicle)
+  end
+
+  def build_original_price_prompt(make:, model:, year:, fuel_type:, transmission:, engine_size:)
+    prompt = "You are a car pricing expert. What was the original purchase price (MSRP) of a new #{year} #{make} #{model} in the UK market?\n\n"
+
+    prompt += "Additional vehicle details:\n"
+    prompt += "- Fuel type: #{fuel_type}\n" if fuel_type.present?
+    prompt += "- Transmission: #{transmission}\n" if transmission.present?
+    prompt += "- Engine size: #{engine_size}\n" if engine_size.present?
+
+    prompt += "\nIMPORTANT: In your response, provide ONLY a single figure representing the original base price in GBP, formatted like this: £25,995 or similar."
+    prompt += "\nDo not include any explanations, ranges, or additional information - just the original price figure."
+
+    prompt
+  end
+
+  def extract_price_from_response(response)
+    return nil unless response.present?
+    
+    # Remove the pound sign and any commas, then convert to decimal
+    price_match = response.match(/£?(\d{1,3}(,\d{3})*(\.\d{1,2})?)/)
+    if price_match
+      price_match[1].gsub(',', '').to_f
+    else
+      nil
+    end
+  end
+
+  def default_original_price(vehicle)
+    # Provide a reasonable default based on vehicle make and age
+    base_price = case vehicle.make&.downcase
+                 when 'bmw', 'mercedes', 'audi', 'lexus'
+                   35000
+                 when 'ford', 'vauxhall', 'volkswagen', 'toyota', 'honda'
+                   20000
+                 when 'dacia', 'suzuki', 'kia', 'hyundai'
+                   15000
+                 else
+                   25000
+                 end
+
+    # Adjust for age
+    age_factor = vehicle.year ? [1.0 - ((Time.current.year - vehicle.year) * 0.02), 0.7].max : 0.9
+    
+    (base_price * age_factor).round
   end
 
   def generate_summary(vehicle)

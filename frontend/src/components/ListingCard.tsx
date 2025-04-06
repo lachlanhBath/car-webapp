@@ -7,6 +7,7 @@ interface Vehicle {
   fuel_type?: string;
   transmission?: string;
   mileage?: number;
+  original_purchase_price?: number;
 }
 
 interface ListingCardProps {

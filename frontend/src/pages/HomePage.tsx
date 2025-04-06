@@ -31,6 +31,7 @@ interface Vehicle {
   purchase_summary?: string;
   mot_repair_estimate?: string;
   expected_lifetime?: string;
+  original_purchase_price?: number;
   listing?: {
     id: string | number;
     title: string;
@@ -630,6 +631,7 @@ const HomePage: React.FC = () => {
                 mot_status: vehicle.mot_status || null,
                 mot_expiry_date: vehicle.mot_expiry_date || null,
                 purchase_summary: vehicle.purchase_summary || null,
+                original_purchase_price: vehicle.original_purchase_price || null,
                 listing: {
                   id: listing.id,
                   title: listing.title || `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Unknown Vehicle',
