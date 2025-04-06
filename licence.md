@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Lachlan Christopher McKenzie Horn and Charlie Thomas Ringo Groves
+Copyright (c) 2025 Lachlan Christopher McKenzie Horn and Charles Thomas Ringo Groves
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
