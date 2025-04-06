@@ -1140,6 +1140,7 @@ const ToggleButton = styled.button<{ active: boolean }>`
   font-size: ${typography.fontSize.sm};
   cursor: pointer;
   transition: all 0.2s ease;
+  margin: 0 ${spacing[1]}; /* Add margin to create a gap between buttons */
   
   &:first-child {
     border-top-left-radius: 4px;
