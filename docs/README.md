@@ -78,13 +78,6 @@ project/
 
 As this is a hackathon project, we're focused on rapid development within the 24-hour timeframe. The documentation provides a blueprint for implementation, but certain aspects may evolve during development.
 
-## Team
-
-- [Team Member 1] - Backend Developer
-- [Team Member 2] - Frontend Developer
-- [Team Member 3] - Full Stack Developer
-- [Team Member 4] - UX/UI Designer
-
 ## Future Enhancements
 
 Beyond the hackathon, we've identified several potential enhancements:
